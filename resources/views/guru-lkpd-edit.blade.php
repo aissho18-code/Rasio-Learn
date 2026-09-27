@@ -25,8 +25,8 @@
                     <div>
                         <label class="mb-2 block text-sm font-bold text-slate-700">Kelas <span class="text-red-500">*</span></label>
                         <select name="kelas_id" required class="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm">
-                            @foreach ($kelasGuru as$kelas)
-                                <option value="{{ $kelas->id }}" {{ $lkpd->kelas_id ==$kelas->id ? 'selected' : '' }}>
+                            @foreach ($kelasGuru as $kelas)
+                                <option value="{{ $kelas->id }}" {{ $lkpd->kelas_id == $kelas->id ? 'selected' : '' }}>
                                     {{ $kelas->nama_kelas }}
                                 </option>
                             @endforeach

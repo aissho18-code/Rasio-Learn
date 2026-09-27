@@ -1,78 +1,154 @@
-<!DOCTYPE html>
-<html lang="id" class="h-full">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Buat Aktivitas Baru - Portal Guru</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>body { font-family: 'Poppins', sans-serif; }</style>
-</head>
-<body class="bg-[#F0F5FE] text-slate-800 h-screen w-screen overflow-hidden flex select-none">
-    <main class="flex-1 flex flex-col h-full overflow-y-auto items-center justify-center p-6">
-        <div class="mb-4 flex w-full max-w-2xl justify-end">
-            <x-notification-bell />
-        </div>
-        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 max-w-2xl w-full space-y-6">
-            <h2 class="text-lg font-extrabold text-slate-900 border-b border-gray-100 pb-3">➕ Buat Aktivitas / LKPD Baru</h2>
+@extends('layouts.app')
 
-            <form action="{{ route('guru.aktivitas.store') }}" method="POST" enctype="multipart/form-data" class="space-y-4 text-xs">
-                @csrf
-                <div>
-                    <label class="block font-bold text-slate-700 mb-1">Judul Aktivitas</label>
-                    <input name="judul" required placeholder="Contoh: Praktikum Struktur Sel Plant & Animal" class="w-full border border-gray-200 rounded-xl p-3 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+@php
+    $title = 'Buat LKPD Baru';
+    $subtitle = 'Buat LKPD baru dan susun soal sesuai kebutuhan kelas.';
+@endphp
+
+@section('content')
+<div class="mx-auto w-full max-w-[1500px] min-h-[calc(100vh-7rem)]">
+    <div class="mb-6 flex items-center justify-between gap-4">
+        <h1 class="text-[36px] font-bold tracking-[-0.04em] text-slate-800">Buat LKPD Baru</h1>
+        <a href="{{ route('guru.lkpd.index') }}" class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50">
+            <span>←</span>
+            <span>Kembali</span>
+        </a>
+    </div>
+
+    @if ($errors->any())
+        <div class="mb-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <ul class="list-disc space-y-1 pl-5">
+                @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
+    <form method="POST" action="{{ route('guru.lkpd.store') }}" enctype="multipart/form-data" x-data="lkpdBuilder()" class="space-y-5">
+        @csrf
+
+        <div class="grid grid-cols-1 gap-6 xl:grid-cols-[1.03fr_1.25fr] xl:auto-rows-fr">
+            <section class="flex h-full flex-col overflow-hidden rounded-[18px] border border-slate-200 bg-white shadow-[0_4px_12px_rgba(15,23,42,0.05)]">
+                <div class="flex items-center gap-3 bg-[#2f5be7] px-5 py-3.5 text-white">
+                    <span class="text-lg">ⓘ</span>
+                    <h2 class="text-base font-bold">Informasi LKPD</h2>
                 </div>
 
-                <div class="grid grid-cols-2 gap-4">
+                <div class="flex-1 space-y-5 p-5">
                     <div>
-                        <label class="block font-bold text-slate-700 mb-1">Ditujukan untuk Kelas</label>
-                        <select name="kelas_id" class="w-full border border-gray-200 rounded-xl p-3 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                            <option value="">Semua Kelas</option>
-                            @foreach($kelasList as $k)
-                                <option value="{{ $k->id }}">{{ $k->nama_kelas }}</option>
+                        <label class="mb-2 block text-sm font-bold text-slate-700">Kelas <span class="text-red-500">*</span></label>
+                        <select name="kelas_id" required class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-600 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100">
+                            <option value="">-- Pilih Kelas --</option>
+                            @foreach ($kelasList as $kelas)
+                                <option value="{{ $kelas->id }}">{{ $kelas->nama_kelas }}</option>
                             @endforeach
                         </select>
                     </div>
 
                     <div>
-                        <label class="block font-bold text-slate-700 mb-1">Tipe Penyerahan Jawaban</label>
-                        <select name="respons_type" class="w-full border border-gray-200 rounded-xl p-3 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                            <option value="file">Upload File (PDF/Word/Gambar)</option>
-                            <option value="text">Teks Langsung</option>
-                            <option value="both">Teks & Upload File</option>
-                        </select>
+                        <label class="mb-2 block text-sm font-bold text-slate-700">Judul LKPD <span class="text-red-500">*</span></label>
+                        <input type="text" name="judul" value="{{ old('judul') }}" required placeholder="Contoh: LKPD 1 - Hukum Newton" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-700 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    </div>
+
+                    <div>
+                        <label class="mb-2 block text-sm font-bold text-slate-700">Batas Waktu <span class="text-red-500">*</span></label>
+                        <div class="relative">
+                            <input type="date" name="deadline" value="{{ old('deadline') }}" required class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 pr-10 text-sm text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100">
+                            <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-slate-400">📅</span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="mb-2 block text-sm font-bold text-slate-700">Deskripsi Singkat</label>
+                        <textarea name="deskripsi" rows="3" placeholder="Gambaran umum LKPD..." class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-700 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100">{{ old('deskripsi') }}</textarea>
+                    </div>
+
+                    <div>
+                        <label class="mb-2 block text-sm font-bold text-slate-700">Instruksi Pengerjaan</label>
+                        <textarea name="instruksi" rows="4" placeholder="Langkah atau petunjuk pengerjaan bagi siswa..." class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-700 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100">{{ old('instruksi') }}</textarea>
+                    </div>
+
+                    <div>
+                        <label class="mb-2 block text-sm font-bold text-slate-700">Dokumen Modul Utuh (Opsional)</label>
+                        <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+                            <input type="file" name="modul" accept=".pdf,.doc,.docx,.ppt,.pptx" class="w-full text-sm text-slate-700 file:mr-3 file:rounded-lg file:border-0 file:bg-[#2f5be7] file:px-3 file:py-2 file:text-xs file:font-bold file:text-white hover:file:bg-blue-700">
+                        </div>
+                        <p class="mt-2 text-xs text-slate-500">PDF/Word/PPT bisa ditambahkan bila diperlukan.</p>
                     </div>
                 </div>
+            </section>
 
-                <div>
-                    <label class="block font-bold text-slate-700 mb-1">Tujuan Pembelajaran (Opsional)</label>
-                    <input name="tujuan" placeholder="Contoh: Siswa dapat mengidentifikasi organel sel" class="w-full border border-gray-200 rounded-xl p-3 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+            <section class="flex h-full flex-col overflow-hidden rounded-[18px] border border-slate-200 bg-white shadow-[0_4px_12px_rgba(15,23,42,0.05)]">
+                <div class="flex items-center justify-between bg-[#2f5be7] px-5 py-3.5 text-white">
+                    <div class="flex items-center gap-3">
+                        <span class="text-lg">📝</span>
+                        <h2 class="text-base font-bold">Daftar Item Soal LKPD</h2>
+                    </div>
+                    <span class="text-xs font-semibold text-blue-100">Soal akan dinilai otomatis menggunakan AI Gemini</span>
                 </div>
 
-                <div>
-                    <label class="block font-bold text-slate-700 mb-1">Petunjuk Pengerjaan</label>
-                    <textarea name="petunjuk" rows="2" placeholder="Tuliskan petunjuk pengerjaan..." class="w-full border border-gray-200 rounded-xl p-3 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:outline-none"></textarea>
+                <div class="flex-1 space-y-5 overflow-y-auto p-5">
+                    <template x-for="(question, index) in questions" :key="question.key">
+                        <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                            <div class="mb-4 flex items-center justify-between">
+                                <h3 class="text-sm font-bold text-slate-700">Soal No. <span x-text="index + 1"></span></h3>
+                                <button type="button" x-show="questions.length > 1" @click="removeQuestion(index)" class="rounded-lg bg-red-50 px-2.5 py-1.5 text-xs font-bold text-red-600 hover:bg-red-100">
+                                    Hapus
+                                </button>
+                            </div>
+
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="mb-2 block text-sm font-bold text-slate-700">Deskripsi / Pertanyaan Soal <span class="text-red-500">*</span></label>
+                                    <textarea :name="`questions[${index}][pertanyaan]`" x-model="question.pertanyaan" rows="3" required placeholder="Tuliskan pertanyaan nomor 1 di sini..." class="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-700 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"></textarea>
+                                </div>
+
+                                <div>
+                                    <label class="mb-2 block text-sm font-bold text-slate-700">Gambar Pendukung Soal (Opsional)</label>
+                                    <div class="rounded-xl border border-slate-200 bg-white px-3 py-2.5">
+                                        <input type="file" :name="`questions[${index}][gambar]`" accept="image/*" class="w-full text-sm text-slate-700 file:mr-3 file:rounded-lg file:border-0 file:bg-[#2f5be7] file:px-3 file:py-2 file:text-xs file:font-bold file:text-white hover:file:bg-blue-700">
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="mb-2 block text-sm font-bold text-emerald-700">Kunci Jawaban / Rubrik <span class="text-red-500">*</span></label>
+                                    <textarea :name="`questions[${index}][rubrik_jawaban]`" x-model="question.rubrik_jawaban" rows="3" required placeholder="Masukkan poin jawaban yang benar atau rubric penilaian..." class="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-700 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
                 </div>
 
-                <div>
-                    <label class="block font-bold text-slate-700 mb-1">Unggah Lampiran LKPD (PDF, DOC, DOCX, PNG, JPG)</label>
-                    <input type="file" name="lkpd" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" class="w-full border border-gray-200 rounded-xl p-3 bg-gray-50">
-                </div>
+                <div class="flex items-center justify-between gap-3 border-t border-slate-200 p-5">
+                    <button type="button" @click="addQuestion()" class="inline-flex items-center justify-center rounded-xl bg-[#18b56b] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#169d5e]">
+                        <span class="mr-2 text-base">＋</span>
+                        <span>Tambah Soal</span>
+                    </button>
 
-                <div>
-                    <label class="block font-bold text-slate-700 mb-1">Status Publikasi</label>
-                    <select name="status" class="w-full border border-gray-200 rounded-xl p-3 bg-gray-50">
-                        <option value="published">Langsung Terbitkan (Published)</option>
-                        <option value="draft">Simpan sebagai Draft</option>
-                    </select>
+                    <button type="submit" class="inline-flex items-center justify-center rounded-xl bg-[#2f5be7] px-6 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#244bcb]">
+                        <span class="mr-2 text-base">💾</span>
+                        <span>Simpan &amp; Terbitkan LKPD</span>
+                    </button>
                 </div>
-
-                <div class="flex justify-end space-x-3 pt-4 border-t border-gray-100">
-                    <a href="{{ route('guru.aktivitas.index') }}" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-4 py-3 rounded-xl transition">Batal</a>
-                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-3 rounded-xl transition shadow-sm">Simpan & Publikasikan</button>
-                </div>
-            </form>
+            </section>
         </div>
-    </main>
-</body>
-</html>
+    </form>
+</div>
+
+<script>
+    function lkpdBuilder() {
+        return {
+            questions: [{ key: Date.now(), pertanyaan: '', rubrik_jawaban: '' }],
+            addQuestion() {
+                this.questions.push({ key: Date.now() + Math.random(), pertanyaan: '', rubrik_jawaban: '' });
+            },
+            removeQuestion(index) {
+                if (this.questions.length > 1) {
+                    this.questions.splice(index, 1);
+                }
+            }
+        };
+    }
+</script>
+@endsection
