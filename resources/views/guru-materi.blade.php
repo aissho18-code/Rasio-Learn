@@ -1,417 +1,274 @@
-<!DOCTYPE html>
-<html lang="id" class="h-full">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
+@extends('layouts.app')
 
-    <title>Manajemen Materi Pembelajaran - Portal Guru</title>
+@section('content')
+    @php
+        $dikelolaMateri = $materiList ?? $materis ?? $materi ?? [];
+        $totalMateri = is_countable($dikelolaMateri) ? count($dikelolaMateri) : 0;
+    @endphp
 
-    <!-- Google Font: Poppins -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <div class="mx-auto max-w-[1200px] px-4 pb-10 pt-6">
+        @if (session('success'))
+            <div class="mb-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-semibold text-green-700">
+                {{ session('success') }}
+            </div>
+        @endif
 
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
+        @if (isset($errors) && $errors->any())
+            <div class="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                <ul class="list-disc space-y-1 pl-5">
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
 
-    <style>
-        body { font-family: 'Poppins', sans-serif; -webkit-font-smoothing: antialiased; }
-        [x-cloak] { display: none !important; }
-
-        /* Style Khusus Rendering Markdown */
-        .materi-content { color: #334155; font-size: 0.8rem; line-height: 1.6; }
-        .materi-content h2 { font-size: 0.95rem; font-weight: 700; color: #0f172a; margin-top: 0.75rem; margin-bottom: 0.35rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.2rem; }
-        .materi-content h3 { font-size: 0.875rem; font-weight: 700; color: #1e293b; margin-top: 0.5rem; margin-bottom: 0.25rem; }
-        .materi-content p { margin-bottom: 0.5rem; }
-        .materi-content ul { list-style-type: disc; padding-left: 1.25rem; margin-bottom: 0.5rem; }
-        .materi-content ol { list-style-type: decimal; padding-left: 1.25rem; margin-bottom: 0.5rem; }
-        .materi-content blockquote { border-left: 3px solid #3b82f6; background-color: #eff6ff; padding: 0.5rem 0.75rem; border-radius: 0.5rem; margin: 0.5rem 0; color: #1e40af; font-size: 0.75rem; }
-        .materi-content table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; font-size: 0.75rem; }
-        .materi-content th, .materi-content td { border: 1px solid #cbd5e1; padding: 0.35rem 0.5rem; text-align: left; }
-        .materi-content th { background-color: #f1f5f9; font-weight: 700; }
-        .materi-content img { max-width: 100%; border-radius: 0.5rem; margin: 0.5rem 0; }
-    </style>
-</head>
-<body class="bg-[#F0F5FE] text-slate-800 h-screen w-screen overflow-hidden flex select-none">
-
-    @include('layouts.sidebar-guru')
-
-    <!-- MAIN CONTENT AREA -->
-    <main class="flex-1 flex flex-col h-full overflow-y-auto">
-        
-        <!-- HEADER TOP BAR -->
-        <x-dashboard-header />
-
-        <!-- CONTAINER KONTEN UTAMA -->
-        <div class="px-8 pb-8 space-y-6 flex-1 max-w-7xl">
-            
-            <!-- HEADER HALAMAN -->
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                    <h1 class="text-xl font-extrabold text-slate-900">Manajemen Materi Pembelajaran</h1>
-                    <p class="text-xs text-slate-500 mt-0.5">Kelola modul materi, atur jadwal pertemuan/pekan, serta kontrol akses materi siswa.</p>
-                </div>
-
-                <button type="button" onclick="focusFormTambah()" class="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 px-4 py-2.5 text-xs font-bold text-white shadow-xs transition cursor-pointer">
-                    <span>➕</span> Tambah Materi Baru
-                </button>
+        <div class="mb-6 flex items-center justify-between gap-4">
+            <div>
+                <h1 class="text-3xl font-extrabold tracking-tight text-slate-900">Kelola Materi</h1>
             </div>
 
-            @if (session('success'))
-                <div class="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl text-xs font-medium shadow-xs">
-                    {{ session('success') }}
-                </div>
-            @endif
+            <button type="button" onclick="openCreateForm()" class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700">
+                <span>＋</span>
+                <span>Tambah Materi</span>
+            </button>
+        </div>
 
-            @if (isset($errors) && $errors->any())
-                @php 
-                    $errorList = $errors->all(); 
-                @endphp
-                <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-xs font-medium shadow-xs">
-                    <ul class="list-disc pl-4 space-y-0.5">
-                        @foreach ($errorList as $error)
-                            <li>{{ $error }}</li>
-                        @endforeach
-                    </ul>
-                </div>
-            @endif
+        <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div class="border-b border-slate-200 bg-slate-50/90 px-6 py-5">
+                <h2 class="text-[15px] font-extrabold text-blue-700">Daftar Materi</h2>
+            </div>
 
-            <!-- LAYOUT UTAMA: EDITOR (KIRI) & DAFTAR MATERI (KANAN) -->
-            <div class="grid grid-cols-1 gap-6 xl:grid-cols-[1.3fr_0.9fr]">
-
-                <!-- EDITOR MATERI (KIRI) -->
-                <div class="bg-white rounded-2xl border border-gray-200/80 shadow-sm overflow-hidden flex flex-col justify-between">
-                    <div>
-                        <!-- HEADER EDITOR DENGAN TAB WRITE / PREVIEW -->
-                        <div class="flex items-center justify-between border-b border-gray-100 bg-slate-50/80 px-6 py-4">
-                            <div class="flex items-center gap-2">
-                                <span class="text-base">📖</span>
-                                <h3 class="font-bold text-gray-800 text-sm">Editor Modul Materi</h3>
-                            </div>
-
-                            <div class="flex rounded-lg bg-slate-200 p-1 text-xs font-semibold">
-                                <button type="button" id="tab-write-btn" onclick="switchTab('write')" class="rounded-md px-3 py-1 bg-white text-slate-800 shadow-xs transition cursor-pointer">
-                                    Ketikan
-                                </button>
-                                <button type="button" id="tab-preview-btn" onclick="switchTab('preview')" class="rounded-md px-3 py-1 text-slate-600 hover:text-slate-900 transition cursor-pointer">
-                                    Preview
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- TAB WRITE (FORM TAMBAH MATERI) -->
-                        <div id="tab-write-content" class="p-6">
-                            <form action="{{ route('guru.materi.store') }}" method="POST" enctype="multipart/form-data" class="space-y-4">
-                                @csrf
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div>
-                                        <label class="block text-[11px] font-bold text-gray-700 mb-1">Kelas Tujuan:</label>
-                                        <select name="kelas_id" required class="w-full text-xs border border-gray-200 rounded-xl p-2.5 bg-gray-50/50 focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                                            <option value="">Pilih kelas</option>
-                                            @foreach($kelasList as $kelas)
-                                                <option value="{{ $kelas->id }}" @selected(old('kelas_id') == $kelas->id)>{{ $kelas->nama_kelas }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label class="block text-[11px] font-bold text-gray-700 mb-1">Pekan / Pertemuan Ke:</label>
-                                        <input type="text" id="input_pekan" name="pekan" required placeholder="Contoh: Pekan ke-1" class="w-full text-xs border border-gray-200 rounded-xl p-2.5 bg-gray-50/50 focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                                    </div>
-
-                                    <div>
-                                        <label class="block text-[11px] font-bold text-gray-700 mb-1">Judul Materi:</label>
-                                        <input type="text" id="input_judul" name="judul" required placeholder="Contoh: Konsep Dasar Rasio" class="w-full text-xs border border-gray-200 rounded-xl p-2.5 bg-gray-50/50 focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <div class="mb-1.5 flex items-center justify-between">
-                                        <label class="block text-[11px] font-bold text-gray-700">Keterangan / Deskripsi / Konten:</label>
-                                        <span class="text-[10px] font-semibold text-blue-600 uppercase">Format Otomatis</span>
-                                    </div>
-
-                                    <!-- SHORTCUT TOOLBAR -->
-                                    <div class="mb-2 flex flex-wrap gap-1.5 rounded-t-xl border border-b-0 border-gray-200 bg-slate-100 p-2">
-                                        <button type="button" onclick="insertFormatting('h2')" class="rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-700 hover:bg-slate-50 cursor-pointer">
-                                            📌 Sub Judul
-                                        </button>
-                                        <button type="button" onclick="insertFormatting('table')" class="rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-700 hover:bg-slate-50 cursor-pointer">
-                                            📊 Tabel
-                                        </button>
-                                        <button type="button" onclick="insertFormatting('callout')" class="rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-700 hover:bg-slate-50 cursor-pointer">
-                                            💡 Catatan Info
-                                        </button>
-                                        <button type="button" onclick="insertFormatting('image')" class="rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-700 hover:bg-slate-50 cursor-pointer">
-                                            🖼️ Gambar
-                                        </button>
-                                        <button type="button" onclick="insertFormatting('list')" class="rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-700 hover:bg-slate-50 cursor-pointer">
-                                            • Poin List
-                                        </button>
-                                    </div>
-
-                                    <textarea id="input_konten" name="konten" rows="8" oninput="updatePreview()" placeholder="Tuliskan instruksi, materi, atau ringkasan..." class="w-full text-xs font-mono border border-gray-200 rounded-b-xl p-3 bg-gray-50/50 focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none leading-relaxed"></textarea>
-                                </div>
-
-                                <div>
-                                    <label class="block text-[11px] font-bold text-gray-700 mb-1">Dokumen Materi (PDF / Word / PPT):</label>
-                                    <input type="file" name="file_materi" class="w-full text-[11px] text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer">
-                                </div>
-
-                                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs py-3 rounded-xl shadow-sm transition cursor-pointer">
-                                    Publikasikan Materi 🚀
-                                </button>
-                            </form>
-                        </div>
-
-                        <!-- TAB PREVIEW -->
-                        <div id="tab-preview-content" class="hidden p-6 space-y-4">
-                            <div class="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                                <span id="preview-pekan" class="inline-flex rounded-full bg-purple-100 px-2.5 py-0.5 text-[10px] font-bold text-purple-700">
-                                    Pekan ke-1
-                                </span>
-                                <h3 id="preview-judul" class="mt-2 text-base font-extrabold text-slate-900">
-                                    Judul Pratinjau Materi
-                                </h3>
-                            </div>
-
-                            <div id="preview-body" class="text-xs leading-relaxed text-slate-700 space-y-3 pt-2 font-sans">
-                                <!-- Hasil Preview JS -->
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- DAFTAR MATERI MODUL (KANAN) -->
-                @php
-                    $dikelolaMateri = $materiList ?? $materis ?? $materi ?? [];
-                @endphp
-
-                <div class="space-y-4">
-                    <div class="bg-white rounded-2xl border border-gray-200/80 shadow-sm p-5">
-                        <div class="mb-4 flex items-center justify-between">
-                            <h3 class="font-bold text-gray-800 text-sm">
-                                Daftar Modul Materi ({{ count($dikelolaMateri) }})
-                            </h3>
-                            <span class="bg-blue-50 text-blue-700 font-bold px-2.5 py-0.5 rounded-full text-[10px]">
-                                Tersedia
-                            </span>
-                        </div>
-
-                        <div class="space-y-3 max-h-[620px] overflow-y-auto pr-1">
-                            @forelse ($dikelolaMateri as $materi)
-                                <div class="bg-white rounded-2xl border border-gray-200/80 p-4 shadow-2xs hover:shadow-md transition space-y-3">
-                                    <div class="flex items-center justify-between">
-                                        <span class="bg-purple-100 text-purple-700 font-bold px-2.5 py-0.5 rounded-lg text-[10px]">
-                                            📅 {{ $materi->pekan ?? 'Pekan Umum' }}
+            <div id="list-panel" class="overflow-x-auto">
+                <table class="w-full min-w-[900px] border-collapse text-left">
+                    <thead>
+                        <tr class="bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500">
+                            <th class="border border-slate-200 px-4 py-4">Judul Pertemuan / Materi</th>
+                            <th class="border border-slate-200 px-4 py-4">Status</th>
+                            <th class="border border-slate-200 px-4 py-4">Komponen</th>
+                            <th class="border border-slate-200 px-4 py-4">Terakhir Update</th>
+                            <th class="border border-slate-200 px-4 py-4 text-center">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if ($totalMateri === 0)
+                            <tr>
+                                <td colspan="5" class="border border-slate-200 px-4 py-16 text-center text-sm text-slate-400">
+                                    Belum ada materi yang dipublikasikan.
+                                </td>
+                            </tr>
+                        @else
+                            @foreach ($dikelolaMateri as $index => $materi)
+                                @php
+                                    $status = $materi->status ?? 'aktif';
+                                    $isPublished = $status === 'aktif';
+                                    $countKomponen = max(1, (int) collect(explode("\n", $materi->konten ?? ''))->filter(fn($line) => trim($line) !== '')->count());
+                                @endphp
+                                <tr class="align-middle text-sm text-slate-700 hover:bg-blue-50/40">
+                                    <td class="border border-slate-200 px-4 py-4">
+                                        <div class="font-bold text-slate-800">{{ $materi->pekan ?? 'Pertemuan ' . ($index + 1) }}</div>
+                                        <div class="mt-1 text-xs text-slate-500">{{ $materi->judul ?? 'Materi tanpa judul' }}</div>
+                                    </td>
+                                    <td class="border border-slate-200 px-4 py-4">
+                                        <span class="inline-flex rounded-full px-3 py-1 text-xs font-bold {{ $isPublished ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500' }}">
+                                            {{ $isPublished ? 'Published' : 'Draft' }}
                                         </span>
-
-                                        @if (($materi->status ?? 'aktif') === 'aktif')
-                                            <span class="bg-green-100 text-green-700 font-bold px-2.5 py-0.5 rounded-full text-[10px]">
-                                                🔓 Unlocked
-                                            </span>
-                                        @else
-                                            <span class="bg-amber-100 text-amber-700 font-bold px-2.5 py-0.5 rounded-full text-[10px]">
-                                                🔒 Locked
-                                            </span>
-                                        @endif
-                                    </div>
-
-                                    <div>
-
-                                    <div>
-                                        <h4 class="font-bold text-gray-800 text-xs line-clamp-1">{{ $materi->judul }}</h4>
-    
-                                        <!-- GANTI {{ $materi->konten }} DENGAN TAG DILENGKAPI CLASS .materi-content -->
-                                        <div class="materi-content line-clamp-3 mt-1">
-                                            {!! $materi->rendered_konten ?? $materi->konten !!}
-                                        </div>
-    
-                                        @if($materi->file_path)
-                                            <div class="mt-2">
-                                                <a href="{{ asset('storage/' . $materi->file_path) }}" target="_blank" class="text-[10px] font-bold text-blue-600 hover:underline inline-flex items-center gap-1">
-                                                    <span>📄 Dokumen Pendukung</span>
-                                                </a>
-                                            </div>
-                                        @endif
-                                    </div>
-                                    
-
-                                    <div class="border-t border-gray-100 pt-3 flex items-center justify-between text-xs">
-                                        @if (Route::has('guru.materi.toggle-lock'))
-                                        <form action="{{ route('guru.materi.toggle-lock', $materi->id) }}" method="POST" class="inline">
-                                            @csrf
-                                            <button type="submit" class="font-semibold text-gray-600 hover:text-blue-600 transition flex items-center gap-1 cursor-pointer">
-                                                @if (($materi->status ?? 'aktif') === 'aktif')
-                                                    <span>🔒 Kunci</span>
-                                                @else
-                                                    <span>🔓 Buka</span>
-                                                @endif
+                                    </td>
+                                    <td class="border border-slate-200 px-4 py-4">{{ $countKomponen }} Komponen</td>
+                                    <td class="border border-slate-200 px-4 py-4">{{ $materi->updated_at?->format('d M Y H:i') ?? '-' }}</td>
+                                    <td class="border border-slate-200 px-4 py-4">
+                                        <div class="flex items-center justify-center gap-2">
+                                            <button type="button" onclick="openEditModal('{{ $materi->id }}', '{{ addslashes($materi->judul ?? '') }}', '{{ addslashes($materi->pekan ?? '') }}', '{{ addslashes($materi->konten ?? '') }}', '{{ $status }}')" class="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-400 text-white shadow-sm transition hover:bg-amber-500" title="Edit Materi">
+                                                ✎
                                             </button>
-                                        </form>
-                                        @else
-                                        <span></span>
-                                        @endif
-
-                                        <div class="flex items-center space-x-3">
-                                            <button type="button" onclick="openEditModal('{{ $materi->id }}', '{{ addslashes($materi->judul ?? '') }}', '{{ addslashes($materi->pekan ?? '') }}', '{{ addslashes($materi->konten ?? '') }}')" class="font-semibold text-blue-600 hover:underline cursor-pointer">
-                                                Edit ✏️
-                                            </button>
-
-                                            <form action="{{ route('guru.materi.destroy', $materi->id) }}" method="POST" class="inline" onsubmit="return confirm('Yakin ingin menghapus materi ini?')">
+                                            <form action="{{ route('guru.materi.destroy', $materi->id) }}" method="POST" onsubmit="return confirm('Yakin ingin menghapus materi ini?')">
                                                 @csrf
                                                 @method('DELETE')
-                                                <button type="submit" class="font-semibold text-red-600 hover:underline cursor-pointer">
-                                                    Hapus 🗑️
+                                                <button type="submit" title="Hapus Materi" class="flex h-9 w-9 items-center justify-center rounded-lg bg-red-500 text-white shadow-sm transition hover:bg-red-600">
+                                                    🗑
                                                 </button>
                                             </form>
                                         </div>
-                                    </div>
-                                </div>
-                            @empty
-                                <div class="bg-white rounded-2xl border border-dashed border-gray-300 p-8 text-center text-gray-400 text-xs italic">
-                                    Belum ada modul materi pembelajaran yang dipublikasikan.
-                                </div>
-                            @endforelse
+                                    </td>
+                                </tr>
+                            @endforeach
+                        @endif
+                    </tbody>
+                </table>
+            </div>
+
+            <div id="materi-form-panel" class="hidden border-t border-slate-200 bg-slate-50 p-6">
+                <div class="mb-5 flex items-center justify-between gap-3">
+                    <h2 id="editor-title" class="text-lg font-semibold text-slate-800">Tambah / Edit Materi — Pertemuan 1</h2>
+                    <button type="button" onclick="closeEditor()" class="text-sm font-medium text-slate-500 hover:text-slate-700">Kembali</button>
+                </div>
+
+                <div class="grid gap-6 xl:grid-cols-[minmax(0,1.8fr)_280px]">
+                    <form id="materi-form" action="{{ route('guru.materi.store') }}" method="POST" enctype="multipart/form-data" class="space-y-4 rounded-2xl border border-slate-200 bg-white p-5">
+                        @csrf
+                        <input type="hidden" id="form_method" name="_method" value="POST">
+                        <input type="hidden" id="status-input" name="status" value="aktif">
+
+                        <div class="grid gap-4 md:grid-cols-2">
+                            <div>
+                                <label class="mb-1 block text-sm text-slate-500">Kelas Tujuan</label>
+                                <select name="kelas_id" required class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 focus:border-[#4E8FF7] focus:outline-none">
+                                    <option value="">Pilih kelas</option>
+                                    @foreach ($kelasList ?? [] as $kelas)
+                                        <option value="{{ $kelas->id }}" @selected(old('kelas_id') == $kelas->id)>{{ $kelas->nama_kelas }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-sm text-slate-500">Pekan / Pertemuan</label>
+                                <input type="text" id="input_pekan" name="pekan" value="{{ old('pekan') }}" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 focus:border-[#4E8FF7] focus:outline-none" placeholder="Contoh: Pekan ke-1">
+                            </div>
                         </div>
-                    </div>
-                </div>
 
+                        <div>
+                            <label class="mb-1 block text-sm text-slate-500">Judul Materi</label>
+                            <input type="text" id="input_judul" name="judul" value="{{ old('judul') }}" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 focus:border-[#4E8FF7] focus:outline-none" placeholder="Pengertian Rasio">
+                        </div>
+
+                        <div class="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm font-medium text-slate-700">Komponen 1</span>
+                                <label class="flex items-center gap-1.5 text-xs text-slate-500">
+                                    <input type="checkbox" checked class="accent-[#4E8FF7]">
+                                    Wajib untuk selesai
+                                </label>
+                            </div>
+
+                            <div>
+                                <label class="mb-1 block text-xs text-slate-500">Konten</label>
+                                <textarea id="input_konten" name="konten" rows="6" oninput="updatePreview()" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-sm text-slate-700 focus:border-[#4E8FF7] focus:outline-none" placeholder="Rich text editor…">{{ old('konten') }}</textarea>
+                            </div>
+
+                            <div>
+                                <label class="mb-1 block text-xs text-slate-500">Media</label>
+                                <input type="file" name="file_materi" class="w-full rounded-xl border border-dashed border-slate-300 bg-white px-3 py-3 text-sm text-slate-500 file:mr-3 file:rounded-lg file:border-0 file:bg-blue-50 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-blue-700 file:cursor-pointer">
+                            </div>
+                        </div>
+
+                        <button type="button" class="text-sm font-medium text-[#4E8FF7]">+ Tambah Komponen</button>
+
+                        <div class="flex gap-3 pt-2">
+                            <button type="submit" data-status="draft" class="material-submit-btn rounded-xl border border-[#4E8FF7] bg-white px-5 py-2.5 text-sm text-[#4E8FF7]">Simpan Draft</button>
+                            <button type="submit" data-status="aktif" id="submit-button" class="material-submit-btn rounded-xl bg-[#4E8FF7] px-5 py-2.5 text-sm font-medium text-white">Publish</button>
+                        </div>
+                    </form>
+
+                    <aside class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                        <div class="mb-3 text-sm font-semibold text-slate-700">Preview Konten</div>
+                        <div class="space-y-2" id="preview-komponen-list">
+                            <div class="rounded-xl bg-[#E8F1FE] px-3 py-2 text-sm font-medium text-[#4E8FF7]">Komponen 1</div>
+                            <div class="rounded-xl px-3 py-2 text-sm text-slate-500">Komponen 2</div>
+                            <div class="rounded-xl px-3 py-2 text-sm text-slate-500">Komponen 3</div>
+                            <div class="rounded-xl px-3 py-2 text-sm text-slate-500">Komponen 4</div>
+                        </div>
+                    </aside>
+                </div>
             </div>
-
-        </div>
-    </main>
-
-    <!-- MODAL EDIT MATERI -->
-    <div id="editModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4">
-        <div class="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-xl">
-            <div class="flex items-center justify-between border-b border-gray-100 pb-3">
-                <h3 class="font-bold text-gray-800 text-sm">✏️ Edit Modul Materi Pembelajaran</h3>
-                <button type="button" onclick="closeEditModal()" class="text-gray-400 hover:text-gray-600 font-bold text-sm cursor-pointer">✕</button>
-            </div>
-
-            <form id="editForm" method="POST" enctype="multipart/form-data" class="space-y-3">
-                @csrf
-                @method('PUT')
-
-                <div>
-                    <label class="block text-[11px] font-bold text-gray-700 mb-1">Pekan / Pertemuan Ke:</label>
-                    <input type="text" id="editPekan" name="pekan" required class="w-full text-xs border border-gray-200 rounded-xl p-2.5 bg-gray-50/50 focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                </div>
-
-                <div>
-                    <label class="block text-[11px] font-bold text-gray-700 mb-1">Judul Materi:</label>
-                    <input type="text" id="editJudul" name="judul" required class="w-full text-xs border border-gray-200 rounded-xl p-2.5 bg-gray-50/50 focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                </div>
-
-                <div>
-                    <label class="block text-[11px] font-bold text-gray-700 mb-1">Keterangan / Deskripsi Singkat:</label>
-                    <textarea id="editKonten" name="konten" rows="4" class="w-full text-xs border border-gray-200 rounded-xl p-2.5 bg-gray-50/50 focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none leading-relaxed"></textarea>
-                </div>
-
-                <div>
-                    <label class="block text-[11px] font-bold text-gray-700 mb-1">Ganti Dokumen Materi (Opsional):</label>
-                    <input type="file" name="file_materi" class="w-full text-[11px] text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer">
-                </div>
-
-                <div class="flex justify-end space-x-2 pt-2">
-                    <button type="button" onclick="closeEditModal()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs px-4 py-2.5 rounded-xl transition cursor-pointer">
-                        Batal
-                    </button>
-                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-6 py-2.5 rounded-xl shadow-sm transition cursor-pointer">
-                        Simpan Perubahan 💾
-                    </button>
-                </div>
-            </form>
-        </div>
+        </section>
     </div>
 
-    <!-- SCRIPT JS INTERAKTIF -->
     <script>
-        function switchTab(tab) {
-            const writeContent = document.getElementById('tab-write-content');
-            const previewContent = document.getElementById('tab-preview-content');
-            const writeBtn = document.getElementById('tab-write-btn');
-            const previewBtn = document.getElementById('tab-preview-btn');
+        function setActiveTab(tab) {
+            const listPanel = document.getElementById('list-panel');
+            const editorPanel = document.getElementById('materi-form-panel');
+            const isList = tab === 'list';
 
-            if (tab === 'write') {
-                writeContent.classList.remove('hidden');
-                previewContent.classList.add('hidden');
+            if (listPanel) {
+                listPanel.classList.toggle('hidden', !isList);
+                listPanel.style.display = isList ? '' : 'none';
+            }
 
-                writeBtn.className = "rounded-md px-3 py-1 bg-white text-slate-800 shadow-xs transition cursor-pointer";
-                previewBtn.className = "rounded-md px-3 py-1 text-slate-600 hover:text-slate-900 transition cursor-pointer";
-            } else {
-                writeContent.classList.add('hidden');
-                previewContent.classList.remove('hidden');
-
-                previewBtn.className = "rounded-md px-3 py-1 bg-white text-blue-600 shadow-xs transition cursor-pointer";
-                writeBtn.className = "rounded-md px-3 py-1 text-slate-600 hover:text-slate-900 transition cursor-pointer";
-
-                updatePreview();
+            if (editorPanel) {
+                editorPanel.classList.toggle('hidden', isList);
+                editorPanel.style.display = isList ? 'none' : 'block';
             }
         }
 
-        function insertFormatting(type) {
-            const textarea = document.getElementById('input_konten');
-            let template = '';
+        function openCreateForm() {
+            setActiveTab('editor');
+            const form = document.getElementById('materi-form');
+            const title = document.getElementById('editor-title');
+            const submitBtn = document.getElementById('submit-button');
+            const methodInput = document.getElementById('form_method');
+            const statusInput = document.getElementById('status-input');
 
-            switch (type) {
-                case 'h2':
-                    template = '\n\n## Sub-Judul Bab Baru\nTuliskan uraian penjelasan di sini...\n';
-                    break;
-                case 'table':
-                    template = '\n\n| Kolom A | Kolom B | Kolom C |\n| :--- | :---: | :--- |\n| Data 1 | Nilai X | Penjelasan |\n';
-                    break;
-                case 'callout':
-                    template = '\n\n> [!INFO] Catatan Penting\nTuliskan poin penting yang wajib diingat siswa di sini.\n';
-                    break;
-                case 'image':
-                    template = '\n\n![Deskripsi Gambar](https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=800&q=80)\n*Gambar: Keterangan singkat ilustrasi materi.*\n';
-                    break;
-                case 'list':
-                    template = '\n\n- Poin materi kesatu\n- Poin materi kedua\n- Poin materi ketiga\n';
-                    break;
+            if (title) title.innerText = 'Tambah / Edit Materi — Pertemuan 1';
+            if (submitBtn) submitBtn.innerText = 'Publish';
+            if (methodInput) methodInput.value = 'POST';
+            if (statusInput) statusInput.value = 'aktif';
+            if (form) {
+                form.action = '{{ route('guru.materi.store') }}';
+                form.reset();
+                if (statusInput) statusInput.value = 'aktif';
+            }
+            updatePreview();
+        }
+
+        function openEditModal(id, judul, pekan, konten, status = 'aktif') {
+            setActiveTab('editor');
+            const form = document.getElementById('materi-form');
+            const editorTitle = document.getElementById('editor-title');
+            const submitBtn = document.getElementById('submit-button');
+            const methodInput = document.getElementById('form_method');
+            const statusInput = document.getElementById('status-input');
+            const inputPekan = document.getElementById('input_pekan');
+            const inputJudul = document.getElementById('input_judul');
+            const inputKonten = document.getElementById('input_konten');
+
+            if (editorTitle) editorTitle.innerText = 'Tambah / Edit Materi — ' + (pekan || 'Pertemuan');
+            if (submitBtn) submitBtn.innerText = 'Publish';
+            if (methodInput) methodInput.value = 'PUT';
+            if (statusInput) statusInput.value = status || 'aktif';
+            if (form) form.action = '/guru/materi/' + id;
+            if (inputPekan) inputPekan.value = pekan || '';
+            if (inputJudul) inputJudul.value = judul || '';
+            if (inputKonten) inputKonten.value = konten || '';
+            updatePreview();
+        }
+
+        function closeEditor() {
+            setActiveTab('list');
+        }
+
+        document.addEventListener('click', function (event) {
+            const button = event.target.closest('.material-submit-btn');
+            if (!button) {
+                return;
             }
 
-            textarea.value += template;
-            textarea.focus();
-        }
+            const statusInput = document.getElementById('status-input');
+            if (statusInput) {
+                statusInput.value = button.dataset.status || 'aktif';
+            }
+        });
 
         function updatePreview() {
-            const pekan = document.getElementById('input_pekan').value || 'Pekan ke-1';
-            const judul = document.getElementById('input_judul').value || 'Judul Pratinjau Materi';
-            const raw = document.getElementById('input_konten').value || 'Belum ada konten materi yang diketik.';
+            const pekan = document.getElementById('input_pekan')?.value || 'Pertemuan 1';
+            const judul = document.getElementById('input_judul')?.value || 'Pengertian Rasio';
+            const list = document.getElementById('preview-komponen-list');
 
-            document.getElementById('preview-pekan').innerText = pekan;
-            document.getElementById('preview-judul').innerText = judul;
+            if (list) {
+                list.innerHTML = `
+                    <div class="rounded-xl bg-[#E8F1FE] px-3 py-2 text-sm font-medium text-[#4E8FF7]">${judul}</div>
+                    <div class="rounded-xl px-3 py-2 text-sm text-slate-500">Komponen 2</div>
+                    <div class="rounded-xl px-3 py-2 text-sm text-slate-500">Komponen 3</div>
+                    <div class="rounded-xl px-3 py-2 text-sm text-slate-500">Komponen 4</div>
+                `;
+            }
 
-            const formatted = raw.split('\n\n').map(p => `<p class="mb-2">${p.replace(/\n/g, '<br>')}</p>`).join('');
-            document.getElementById('preview-body').innerHTML = formatted;
+            const editorTitle = document.getElementById('editor-title');
+            if (editorTitle) {
+                editorTitle.innerText = 'Tambah / Edit Materi — ' + pekan;
+            }
         }
 
-        function focusFormTambah() {
-            switchTab('write');
-            document.getElementById('input_pekan').focus();
-        }
-
-        function openEditModal(id, judul, pekan, konten) {
-            const modal = document.getElementById('editModal');
-            const form = document.getElementById('editForm');
-            
-            document.getElementById('editJudul').value = judul;
-            document.getElementById('editPekan').value = pekan;
-            document.getElementById('editKonten').value = konten;
-            
-            form.action = '/guru/materi/' + id;
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-        }
-
-        function closeEditModal() {
-            const modal = document.getElementById('editModal');
-            modal.classList.remove('flex');
-            modal.classList.add('hidden');
-        }
+        document.addEventListener('DOMContentLoaded', function () {
+            setActiveTab('list');
+        });
     </script>
-</body>
-</html>
+@endsection

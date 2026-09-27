@@ -149,6 +149,7 @@ class GuruController extends Controller
             'pekan' => 'required|string|max:50',
             'kelas_id' => 'required|exists:kelas,id',
             'konten' => 'nullable|string',
+            'status' => 'nullable|in:draft,aktif,terkunci',
             'file_materi' => 'nullable|file|mimes:pdf,doc,docx,ppt,pptx|max:10240',
         ]);
 
@@ -174,7 +175,7 @@ class GuruController extends Controller
             'mapel_id' => $mapel->id,
             'kelas_id' => $request->kelas_id,
             'urutan' => $nextUrutan,
-            'status' => 'aktif',
+            'status' => $request->status ?? 'aktif',
         ]);
 
         $notifications->notifyStudentsInClass((int) $materi->kelas_id, new LearningNotification(
@@ -195,6 +196,7 @@ class GuruController extends Controller
             'judul' => 'required|string|max:255',
             'pekan' => 'required|string|max:50',
             'konten' => 'nullable|string',
+            'status' => 'nullable|in:draft,aktif,terkunci',
             'file_materi' => 'nullable|file|mimes:pdf,doc,docx,ppt,pptx|max:10240',
         ]);
 
@@ -212,19 +214,24 @@ class GuruController extends Controller
             'judul' => $request->judul,
             'pekan' => $request->pekan,
             'konten' => $request->konten,
+            'status' => $request->status ?? $materi->status,
         ]);
 
         return redirect()->route('guru.materi.index')->with('success', 'Modul materi berhasil diperbarui!');
     }
 
     // 4. Mengubah Status Lock / Unlock Materi
-    public function materiToggleLock($id, LearningNotificationService $notifications)
+    public function materiToggleLock(Request $request, $id, LearningNotificationService $notifications)
     {
         $materi = Materi::findOrFail($id);
-        $newStatus = $materi->status === 'aktif' ? 'terkunci' : 'aktif';
-        
+        $newStatus = $request->input('status', $materi->status === 'aktif' ? 'terkunci' : 'aktif');
+
+        if (! in_array($newStatus, ['aktif', 'terkunci'], true)) {
+            $newStatus = $materi->status === 'aktif' ? 'terkunci' : 'aktif';
+        }
+
         $materi->update([
-            'status' => $newStatus
+            'status' => $newStatus,
         ]);
 
         if ($newStatus === 'aktif') {
@@ -237,7 +244,10 @@ class GuruController extends Controller
             ));
         }
 
-        $pesan = $newStatus === 'aktif' ? 'Materi berhasil dibuka (Unlocked) untuk siswa!' : 'Materi berhasil dikunci (Locked).';
+        $pesan = $newStatus === 'aktif'
+            ? 'Materi berhasil dibuka (Unlocked) untuk siswa!'
+            : 'Materi berhasil dikunci (Locked).';
+
         return redirect()->route('guru.materi.index')->with('success', $pesan);
     }
 
