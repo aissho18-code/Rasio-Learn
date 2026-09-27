@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
@@ -23,6 +24,16 @@ class User extends Authenticatable
         'password',
         'remember_token',
     ];
+
+    public function scopeForRoles(Builder $query, string|array $roles): Builder
+    {
+        $roles = (array) $roles;
+
+        return $query->where(function (Builder $query) use ($roles) {
+            $query->whereIn('role', $roles)
+                ->orWhereHas('roles', fn (Builder $roleQuery) => $roleQuery->whereIn('name', $roles));
+        });
+    }
 
     public function siswaProfile()
     {

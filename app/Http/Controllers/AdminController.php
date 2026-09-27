@@ -12,7 +12,7 @@ class AdminController extends Controller
     // Menampilkan daftar pengguna (Guru & Siswa) di Dashboard Admin
     public function index()
     {
-        $users = User::whereIn('role', ['guru', 'siswa'])->get();
+        $users = User::forRoles(['guru', 'siswa'])->get();
         return view('dashboard-admin', compact('users'));
     }
 

@@ -61,6 +61,7 @@ class UserManagementController extends Controller
                 ['user_id' => $user->id],
                 ['nip' => null, 'mapel_id' => null]
             );
+            Kelas::whereKey($data['kelas_id'])->update(['wali_kelas_id' => $user->id]);
         }
 
         return redirect()->route('admin.users.index')->with('status', 'Pengguna berhasil dibuat.');
@@ -70,7 +71,9 @@ class UserManagementController extends Controller
     {
         $roles = ['admin', 'guru', 'siswa'];
         $kelas = Kelas::orderBy('nama_kelas')->get();
-        $kelasId = optional($user->siswaProfile)->kelas_id;
+        $kelasId = $user->role === 'guru'
+            ? Kelas::where('wali_kelas_id', $user->id)->value('id')
+            : optional($user->siswaProfile)->kelas_id;
         return view('admin-users-form', compact('user', 'roles', 'kelas', 'kelasId'));
     }
 
@@ -84,6 +87,7 @@ class UserManagementController extends Controller
             'kelas_id' => 'nullable|exists:kelas,id',
         ]);
 
+        $previousRole = $user->role;
         $updateData = [
             'name' => $data['name'],
             'email' => $data['email'],
@@ -119,6 +123,11 @@ class UserManagementController extends Controller
                 ['user_id' => $user->id],
                 ['nip' => optional($user->guruProfile)->nip, 'mapel_id' => null]
             );
+            Kelas::whereKey($data['kelas_id'])->update(['wali_kelas_id' => $user->id]);
+        }
+
+        if ($previousRole === 'guru' && $data['role'] !== 'guru') {
+            Kelas::where('wali_kelas_id', $user->id)->update(['wali_kelas_id' => null]);
         }
 
         return redirect()->route('admin.users.index')->with('status', 'Pengguna berhasil diperbarui.');

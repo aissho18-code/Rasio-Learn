@@ -38,7 +38,9 @@ class GuruController extends Controller
         $selectedKelasId = $request->input('kelas_id');
 
         // 1. Ambil seluruh kelas untuk dropdown filter
-        $kelasList = Kelas::orderBy('nama_kelas')->get();
+        $kelasList = Kelas::where('wali_kelas_id', $guru->id)
+            ->orderBy('nama_kelas')
+            ->get();
 
         // 2. Kalkulasi Statistik Real-Time dari Database
         $totalKelas = $kelasList->count();

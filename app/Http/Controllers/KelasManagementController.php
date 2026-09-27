@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Models\Kelas;
 use App\Models\SiswaProfile;
 use App\Models\GuruProfile;
+use Spatie\Permission\Models\Role;
 
 class KelasManagementController extends Controller
 {
@@ -17,8 +18,7 @@ class KelasManagementController extends Controller
 
     public function create()
     {
-        // Diubah menggunakan pengecekan kolom 'role' pada tabel users
-        $gurus = User::where('role', 'guru')->get();
+        $gurus = User::forRoles('guru')->get();
         return view('admin-kelas-form', ['kelas' => new Kelas(), 'gurus' => $gurus]);
     }
 
@@ -36,8 +36,7 @@ class KelasManagementController extends Controller
 
     public function edit(Kelas $kelas)
     {
-        // Diubah menggunakan pengecekan kolom 'role' pada tabel users
-        $gurus = User::where('role', 'guru')->get();
+        $gurus = User::forRoles('guru')->get();
         return view('admin-kelas-form', compact('kelas', 'gurus'));
     }
 
@@ -78,6 +77,9 @@ class KelasManagementController extends Controller
             if ($user->role !== 'guru') {
                 $user->update(['role' => 'guru']);
             }
+            Role::firstOrCreate(['name' => 'guru', 'guard_name' => 'web']);
+            $user->syncRoles(['guru']);
+            $kelas->update(['wali_kelas_id' => $user->id]);
         }
         return back()->with('status', 'Peserta berhasil ditambahkan ke kelas.');
     }
@@ -108,6 +110,9 @@ class KelasManagementController extends Controller
         if ($p['role'] === 'siswa') {
             SiswaProfile::updateOrCreate(['user_id' => $user->id], ['kelas_id' => $target->id]);
         } else {
+            if ($kelas->wali_kelas_id == $user->id) {
+                $kelas->update(['wali_kelas_id' => null]);
+            }
             $target->update(['wali_kelas_id' => $user->id]);
         }
         return back()->with('status', 'Peserta berhasil dipindah ke kelas.');

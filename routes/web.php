@@ -35,7 +35,7 @@ Route::get('/dashboard', function () {
     $user = auth()->user();
 
     if ($user->hasRole('admin') || $user->role === 'admin') {
-        $users = \App\Models\User::whereIn('role', ['guru', 'siswa'])->get();
+        $users = \App\Models\User::forRoles(['guru', 'siswa'])->get();
         return view('dashboard-admin', compact('users'));
     }
 
