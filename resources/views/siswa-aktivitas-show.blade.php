@@ -14,6 +14,10 @@
             <div class="p-4 bg-emerald-100 text-emerald-800 rounded-xl font-bold text-sm">{{ session('success') }}</div>
         @endif
 
+        <div class="flex justify-end">
+            <x-notification-bell />
+        </div>
+
         <div class="bg-white p-6 rounded-2xl border shadow-sm">
             <span class="text-xs bg-blue-100 text-blue-700 font-bold px-3 py-1 rounded-full">LKPD Interaktif</span>
             <h1 class="text-2xl font-bold text-slate-800 mt-2">{{ $aktivitas->judul }}</h1>

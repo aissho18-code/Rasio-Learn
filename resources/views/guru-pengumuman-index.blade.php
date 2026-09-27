@@ -16,6 +16,7 @@
                 <p class="text-xs text-slate-500 mt-0.5">Daftar informasi yang Anda publikasikan ke siswa.</p>
             </div>
             <div class="flex items-center gap-3">
+                <x-notification-bell />
                 <a href="{{ route('guru.dashboard') }}" class="text-xs font-bold text-slate-600 hover:underline">
                     ← Kembali ke Dashboard
                 </a>

@@ -179,6 +179,25 @@
 
             </div>
 
+            <section class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+                <div class="border-b border-gray-100 px-6 py-4">
+                    <h2 class="text-sm font-bold text-slate-800">Pengumpulan Ujian yang Perlu Ditinjau</h2>
+                </div>
+                <div class="divide-y divide-gray-100">
+                    @forelse($submissions as $submission)
+                        <details class="px-6 py-4">
+                            <summary class="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 text-xs">
+                                <span class="font-bold text-slate-800">{{ $submission->student?->name }} · {{ $submission->exam?->title }}</span>
+                                <span class="text-slate-500">Dikirim {{ $submission->submitted_at?->diffForHumans() }}</span>
+                            </summary>
+                            <p class="mt-3 whitespace-pre-wrap rounded-lg bg-slate-50 p-4 text-xs leading-5 text-slate-700">{{ $submission->response }}</p>
+                        </details>
+                    @empty
+                        <p class="px-6 py-8 text-center text-xs text-slate-400">Belum ada pengumpulan ujian.</p>
+                    @endforelse
+                </div>
+            </section>
+
         </div>
     </main>
 

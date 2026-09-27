@@ -106,6 +106,15 @@
                                 @csrf
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
+                                        <label class="block text-[11px] font-bold text-gray-700 mb-1">Kelas Tujuan:</label>
+                                        <select name="kelas_id" required class="w-full text-xs border border-gray-200 rounded-xl p-2.5 bg-gray-50/50 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                                            <option value="">Pilih kelas</option>
+                                            @foreach($kelasList as $kelas)
+                                                <option value="{{ $kelas->id }}" @selected(old('kelas_id') == $kelas->id)>{{ $kelas->nama_kelas }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div>
                                         <label class="block text-[11px] font-bold text-gray-700 mb-1">Pekan / Pertemuan Ke:</label>
                                         <input type="text" id="input_pekan" name="pekan" required placeholder="Contoh: Pekan ke-1" class="w-full text-xs border border-gray-200 rounded-xl p-2.5 bg-gray-50/50 focus:ring-2 focus:ring-blue-500 focus:outline-none">
                                     </div>

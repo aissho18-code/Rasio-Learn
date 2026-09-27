@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Exam;
 use App\Models\Kelas;
 use App\Models\ProctorLog;
+use App\Notifications\LearningNotification;
+use App\Support\LearningNotificationService;
 use Illuminate\Http\Request;
 
 class AdminExamController extends Controller
@@ -38,7 +40,7 @@ class AdminExamController extends Controller
     }
 
     // 3. Simpan Ujian Baru
-    public function store(Request $request)
+    public function store(Request $request, LearningNotificationService $notifications)
     {
         $data = $request->validate([
             'title' => ['required', 'string', 'max:255'],
@@ -49,11 +51,25 @@ class AdminExamController extends Controller
             'ends_at' => ['nullable', 'date', 'after_or_equal:starts_at'],
         ]);
 
-        Exam::create([
+        $exam = Exam::create([
             ...$data,
             'created_by' => $request->user()->id,
             'locked' => false,
         ]);
+
+        $notification = new LearningNotification(
+            type: 'exam',
+            title: 'Ujian Baru Tersedia',
+            message: 'Ujian ' . $exam->title . ' telah diterbitkan.',
+            url: route('siswa.ujian.index'),
+            eventKey: 'exam.published:' . $exam->id
+        );
+
+        if ($exam->kelas_id) {
+            $notifications->notifyStudentsInClass((int) $exam->kelas_id, $notification);
+        } else {
+            $notifications->notifyAllStudents($notification);
+        }
 
         return redirect()->route('admin.exams.index')->with('status', 'Ujian berhasil dibuat.');
     }
@@ -68,7 +84,7 @@ class AdminExamController extends Controller
     }
 
     // 5. Update Ujian
-    public function update(Request $request, $id)
+    public function update(Request $request, $id, LearningNotificationService $notifications)
     {
         $exam = Exam::findOrFail($id);
 
@@ -82,6 +98,22 @@ class AdminExamController extends Controller
         ]);
 
         $exam->update($data);
+
+        if ($exam->wasChanged()) {
+            $notification = new LearningNotification(
+                type: 'exam',
+                title: 'Informasi Ujian Diperbarui',
+                message: 'Informasi ujian ' . $exam->title . ' telah diperbarui oleh Admin.',
+                url: route('siswa.ujian.index'),
+                eventKey: 'exam.updated:' . $exam->id . ':' . $exam->updated_at->timestamp
+            );
+
+            if ($exam->kelas_id) {
+                $notifications->notifyStudentsInClass((int) $exam->kelas_id, $notification);
+            } else {
+                $notifications->notifyAllStudents($notification);
+            }
+        }
 
         return redirect()->route('admin.exams.index')->with('status', 'Ujian berhasil diperbarui.');
     }

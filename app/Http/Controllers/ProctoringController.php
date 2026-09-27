@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\ProctoringLog;
+use App\Notifications\LearningNotification;
+use App\Support\LearningNotificationService;
 
 class ProctoringController extends Controller
 {
@@ -12,7 +14,7 @@ class ProctoringController extends Controller
         return view('proctoring-demo');
     }
 
-    public function storeLog(Request $request)
+    public function storeLog(Request $request, LearningNotificationService $notifications)
     {
         $validated = $request->validate([
             'type' => 'required|string',
@@ -28,6 +30,17 @@ class ProctoringController extends Controller
             'detail' => $validated['detail'],
             'severity' => $validated['severity'],
         ]);
+
+        if (in_array($log->severity, ['warn', 'critical'], true)) {
+            $log->load(['user', 'exam']);
+            $notifications->notifyAdmins(new LearningNotification(
+                type: 'system',
+                title: $log->severity === 'critical' ? 'Peringatan Proctoring Kritis' : 'Peringatan Proctoring',
+                message: ($log->user?->name ?? 'Siswa') . ' memicu peringatan pada ujian ' . ($log->exam?->title ?? 'tanpa nama') . '.',
+                url: route('admin.proctoring'),
+                eventKey: 'proctoring.log:' . $log->id
+            ));
+        }
 
         return response()->json([
             'success' => true,

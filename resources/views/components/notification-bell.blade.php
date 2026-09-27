@@ -92,18 +92,26 @@
                     $icon = match ($type) {
                         'login' => '↪',
                         'assignment' => '✓',
-                        'announcement' => '!',
                         'activity' => '▣',
                         'exam' => '✎',
+                        'material' => '▤',
+                        'discussion' => '☷',
+                        'feedback' => '★',
+                        'deadline' => '◷',
+                        'system' => '⚙',
                         default => '•',
                     };
 
                     $iconClass = match ($type) {
                         'login' => 'bg-blue-50 text-blue-600',
                         'assignment' => 'bg-green-50 text-green-600',
-                        'announcement' => 'bg-amber-50 text-amber-600',
                         'activity' => 'bg-purple-50 text-purple-600',
                         'exam' => 'bg-red-50 text-red-600',
+                        'material' => 'bg-cyan-50 text-cyan-700',
+                        'discussion' => 'bg-amber-50 text-amber-700',
+                        'feedback' => 'bg-emerald-50 text-emerald-700',
+                        'deadline' => 'bg-orange-50 text-orange-700',
+                        'system' => 'bg-slate-100 text-slate-700',
                         default => 'bg-slate-50 text-slate-600',
                     };
                 @endphp

@@ -57,3 +57,13 @@ If you discover a security vulnerability within Laravel, please send an e-mail t
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+
+## Notification Scheduler
+
+Task deadline reminders are checked hourly. In development, keep the Laravel scheduler running in a terminal:
+
+```bash
+php artisan schedule:work
+```
+
+In production, configure the system cron to run `php artisan schedule:run` every minute from the project directory.

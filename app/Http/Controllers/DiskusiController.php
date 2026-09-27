@@ -6,6 +6,9 @@ use Illuminate\Http\Request;
 use App\Models\Diskusi;
 use App\Models\KomentarDiskusi;
 use App\Models\DiskusiReaction;
+use App\Models\User;
+use App\Notifications\LearningNotification;
+use App\Support\LearningNotificationService;
 
 class DiskusiController extends Controller
 {
@@ -20,34 +23,69 @@ class DiskusiController extends Controller
     }
 
     // Menyimpan topik diskusi baru
-    public function store(Request $request)
+    public function store(Request $request, LearningNotificationService $notifications)
     {
         $request->validate([
             'judul' => 'required|string|max:255',
             'pesan' => 'required|string',
         ]);
 
-        Diskusi::create([
+        $diskusi = Diskusi::create([
             'user_id' => auth()->id(),
             'judul' => $request->judul,
             'pesan' => $request->pesan,
         ]);
 
+        $actor = $request->user();
+        if ($actor->role === 'siswa' || $actor->hasRole('siswa')) {
+            $kelasId = optional($actor->siswaProfile)->kelas_id;
+            if ($kelasId) {
+                $notifications->notifyClassTeacher((int) $kelasId, new LearningNotification(
+                    type: 'discussion',
+                    title: 'Topik Forum Baru',
+                    message: $actor->name . ' membuat topik: ' . $diskusi->judul,
+                    url: route('diskusi.index'),
+                    eventKey: 'discussion.created:' . $diskusi->id . ':' . $actor->id
+                ));
+            }
+        }
+
         return redirect()->route('diskusi.index')->with('success', 'Topik diskusi berhasil dipublikasikan!');
     }
 
     // Menyimpan tanggapan/komentar pada suatu topik
-    public function storeKomentar(Request $request, $id)
+    public function storeKomentar(Request $request, $id, LearningNotificationService $notifications)
     {
         $request->validate([
             'pesan' => 'required|string',
         ]);
 
-        KomentarDiskusi::create([
+        $komentar = KomentarDiskusi::create([
             'diskusi_id' => $id,
             'user_id' => auth()->id(),
             'pesan' => $request->pesan,
         ]);
+
+        $diskusi = Diskusi::with('user')->findOrFail($id);
+        $actor = $request->user();
+        $notification = new LearningNotification(
+            type: 'discussion',
+            title: 'Respons Forum Baru',
+            message: $actor->name . ' merespons topik: ' . $diskusi->judul,
+            url: route('diskusi.index'),
+            eventKey: 'discussion.comment:' . $komentar->id
+        );
+
+        if ($diskusi->user && (int) $diskusi->user_id !== (int) $actor->id) {
+            $notifications->sendOnce($diskusi->user, $notification);
+        }
+
+        if ($actor->role === 'siswa' || $actor->hasRole('siswa')) {
+            $kelasId = optional($actor->siswaProfile)->kelas_id;
+            if ($kelasId) {
+                $notifications->notifyClassTeacher((int) $kelasId, $notification);
+            }
+        }
 
         return redirect()->route('diskusi.index')->with('success', 'Tanggapan berhasil dikirim!');
     }

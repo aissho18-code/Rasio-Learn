@@ -11,7 +11,10 @@ use App\Models\Ujian;
 use App\Models\Tugas;
 use App\Models\Refleksi;
 use App\Models\RefleksiSubmission; 
+use App\Models\User;
+use App\Notifications\LearningNotification;
 use App\Support\MarkdownRenderer; // Impor class MarkdownRenderer
+use App\Support\LearningNotificationService;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Auth;
@@ -92,7 +95,10 @@ class SiswaController extends Controller
             return redirect()->route('guru.tugas.index');
         }
 
-        $tugasList = Tugas::orderBy('created_at', 'desc')->get();
+        $kelasId = optional($user->siswaProfile)->kelas_id;
+        $tugasList = Tugas::whereHas('materi', fn ($query) => $query->where('kelas_id', $kelasId))
+            ->orderBy('created_at', 'desc')
+            ->get();
         
         $submissions = Submission::where('siswa_id', auth()->id())
             ->get()
@@ -104,7 +110,9 @@ class SiswaController extends Controller
     // Menampilkan Laman Detail Tugas & Submission Status Moodle-Style
     public function showTugas($id)
     {
-        $tugas = Tugas::findOrFail($id);
+        $kelasId = optional(auth()->user()->siswaProfile)->kelas_id;
+        $tugas = Tugas::whereHas('materi', fn ($query) => $query->where('kelas_id', $kelasId))
+            ->findOrFail($id);
         $submission = Submission::where('siswa_id', auth()->id())->where('tugas_id', $id)->first();
 
         $timeRemainingText = '-';
@@ -187,9 +195,12 @@ class SiswaController extends Controller
     }
 
     // Proses Pengumpulan Tugas
-    public function submitTugas(Request $request, $tugasId)
+    public function submitTugas(Request $request, $tugasId, LearningNotificationService $notifications)
     {
-        $tugas = Tugas::findOrFail($tugasId);
+        $kelasId = optional(auth()->user()->siswaProfile)->kelas_id;
+        $tugas = Tugas::with('materi.kelas')
+            ->whereHas('materi', fn ($query) => $query->where('kelas_id', $kelasId))
+            ->findOrFail($tugasId);
 
         if ($tugas->tenggat_waktu && now()->greaterThan($tugas->tenggat_waktu)) {
             return redirect()->back()->with('error', '⛔ Pengumpulan gagal! Waktu pengerjaan telah melewati tenggat yang ditentukan.');
@@ -232,13 +243,26 @@ class SiswaController extends Controller
             $dataToSave['jawaban'] = $request->jawaban;
         }
 
-        Submission::updateOrCreate(
+        $submission = Submission::updateOrCreate(
             [
                 'siswa_id' => auth()->id(),
                 'tugas_id' => $tugasId,
             ],
             $dataToSave
         );
+
+        $teacherId = $tugas->materi?->kelas?->wali_kelas_id;
+        $teacher = $teacherId ? User::forRoles('guru')->find($teacherId) : null;
+
+        if ($teacher) {
+            $notifications->sendOnce($teacher, new LearningNotification(
+                type: 'assignment',
+                title: 'Tugas Siswa Perlu Dinilai',
+                message: auth()->user()->name . ' mengumpulkan tugas ' . $tugas->judul . '.',
+                url: route('guru.penilaian.tugas.detail', $submission->id),
+                eventKey: 'task.submitted:' . $submission->id . ':' . $submission->updated_at->timestamp
+            ));
+        }
 
         if ($request->hasFile('file_submission') && $oldFilePath && $oldFilePath !== $newFilePath) {
             if (Storage::disk('public')->exists($oldFilePath)) {

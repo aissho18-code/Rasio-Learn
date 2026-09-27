@@ -1,47 +1,79 @@
-@extends('layouts.siswa')
+<?php
 
-@php
-    $title = $lkpd->judul;
-    $subtitle = 'Pengerjaan Lembar Kerja Peserta Didik';
-@endphp
+namespace App\Http\Controllers\Siswa;
 
-@section('content')
-<div class="mx-auto max-w-4xl">
-    <div class="mb-5 flex items-center justify-between">
-        <div>
-            <h1 class="text-2xl font-extrabold text-slate-900">{{ $lkpd->judul }}</h1>
-            <p class="mt-1 text-sm text-slate-500">Batas Waktu: {{ $lkpd->deadline?->format('d M Y H:i') }}</p>
-        </div>
-        <a href="{{ route('siswa.lkpd.index') }}" class="rounded-xl bg-slate-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-slate-700">
-            ← Kembali
-        </a>
-    </div>
+use App\Http\Controllers\Controller;
+use App\Models\Lkpd;
+use App\Models\LkpdSubmission;
+use App\Models\User;
+use App\Notifications\LearningNotification;
+use App\Support\LearningNotificationService;
+use Illuminate\Http\Request;
 
-    @if (session('status'))
-        <div class="mb-5 rounded-xl border border-green-200 bg-green-50 px-5 py-3 text-sm font-semibold text-green-700">
-            {{ session('status') }}
-        </div>
-    @endif
+class LkpdController extends Controller
+{
+    public function index(Request $request)
+    {
+        $student = $request->user();
+        $kelasId = optional($student->siswaProfile)->kelas_id;
 
-    <form method="POST" action="{{ route('siswa.lkpd.submit', $lkpd) }}" class="space-y-6">
-        @csrf
-        @foreach ($lkpd->questions as $index => $question)
-            <div class="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-                <h3 class="font-bold text-blue-700 mb-2">Soal No. {{ $index + 1 }}</h3>
-                <p class="text-slate-800 text-sm mb-4">{{ $question->pertanyaan }}</p>
+        $lkpds = Lkpd::query()
+            ->where('kelas_id', $kelasId)
+            ->where('status', 'published')
+            ->with(['guru', 'questions'])
+            ->latest()
+            ->get();
 
-                @if ($question->gambar_path)
-                    <img src="{{ asset('storage/' . $question->gambar_path) }}" alt="Gambar Soal" class="mb-4 max-h-64 rounded-xl object-contain">
-                @endif
+        return view('siswa-lkpd-index', compact('lkpds'));
+    }
 
-                <label class="block text-xs font-bold text-slate-600 mb-1">Jawaban Anda:</label>
-                <textarea name="jawaban[{{ $question->id }}]" rows="4" required class="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm" placeholder="Tuliskan jawaban Anda di sini...">{{ old("jawaban.{$question->id}", $submission->jawaban[$question->id] ?? '') }}</textarea>
-            </div>
-        @endforeach
+    public function show(Request $request, Lkpd $lkpd)
+    {
+        $this->ensureStudentCanAccess($request, $lkpd);
 
-        <button type="submit" class="w-full rounded-xl bg-blue-600 py-3.5 text-sm font-bold text-white hover:bg-blue-700">
-            Kirim Jawaban LKPD
-        </button>
-    </form>
-</div>
-@endsection
+        $lkpd->load('questions');
+        $submission = LkpdSubmission::where('lkpd_id', $lkpd->id)
+            ->where('siswa_id', $request->user()->id)
+            ->first();
+
+        return view('siswa-lkpd-show', compact('lkpd', 'submission'));
+    }
+
+    public function submit(Request $request, Lkpd $lkpd, LearningNotificationService $notifications)
+    {
+        $this->ensureStudentCanAccess($request, $lkpd);
+
+        $data = $request->validate([
+            'jawaban' => ['required', 'array', 'min:1'],
+            'jawaban.*' => ['required', 'string'],
+        ]);
+
+        $questionIds = $lkpd->questions()->pluck('id')->map(fn ($id) => (string) $id)->all();
+        abort_if(array_diff(array_keys($data['jawaban']), $questionIds), 422);
+
+        $submission = LkpdSubmission::updateOrCreate(
+            ['lkpd_id' => $lkpd->id, 'siswa_id' => $request->user()->id],
+            ['jawaban' => $data['jawaban'], 'status' => 'submitted', 'submitted_at' => now()]
+        );
+
+        $teacher = User::find($lkpd->guru_id);
+        if ($teacher) {
+            $notifications->sendOnce($teacher, new LearningNotification(
+                type: 'assignment',
+                title: 'Pengumpulan LKPD Baru',
+                message: $request->user()->name . ' mengumpulkan LKPD ' . $lkpd->judul . '.',
+                url: route('guru.lkpd.index'),
+                eventKey: 'lkpd.submitted:' . $submission->id . ':' . $submission->updated_at->timestamp
+            ));
+        }
+
+        return redirect()->route('siswa.lkpd.show', $lkpd)->with('status', 'Jawaban LKPD berhasil dikirim.');
+    }
+
+    private function ensureStudentCanAccess(Request $request, Lkpd $lkpd): void
+    {
+        $kelasId = optional($request->user()->siswaProfile)->kelas_id;
+
+        abort_unless($lkpd->status === 'published' && (int) $lkpd->kelas_id === (int) $kelasId, 403);
+    }
+}

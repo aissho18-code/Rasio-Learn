@@ -5,16 +5,15 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use App\Models\User;
 
 class AuthenticatedSessionController extends Controller
 {
-    public function create(Request $request)
+    public function create()
     {
-        return view('auth.login', [
-            'loginRole' => $request->query('role', 'siswa'),
-        ]);
+        return view('auth.login');
     }
 
     public function store(Request $request)
@@ -23,7 +22,6 @@ class AuthenticatedSessionController extends Controller
         $credentials = $request->validate([
             'email' => ['required', 'email'],
             'password' => ['required', 'string'],
-            'role' => ['required', 'in:admin,guru,siswa'],
         ]);
 
         $user = User::where('email', $credentials['email'])->first();
@@ -43,42 +41,29 @@ class AuthenticatedSessionController extends Controller
         }
 
         // 4. Validasi Password
-        if (! Auth::validate([
-            'email' => $credentials['email'],
-            'password' => $credentials['password'],
-        ])) {
+        if (! Hash::check($credentials['password'], $user->password)) {
             throw ValidationException::withMessages([
                 'email' => 'Email atau password tidak sesuai.',
             ]);
         }
 
-        // 5. Ambil Role Asli User (Utamakan Spatie Permission, Fallback ke kolom role)
-        $actualRole = method_exists($user, 'getRoleNames') ? $user->getRoleNames()->first() : null;
-        if (! $actualRole && ! empty($user->role)) {
-            $actualRole = $user->role;
-        }
+        $actualRole = $user->role;
+        if (! in_array($actualRole, ['admin', 'guru', 'siswa'], true)) {
+            $request->session()->forget('url.intended');
 
-        // 6. Tolak Login Jika Role Form Tidak Cocok dengan Role Akun Sebenarnya
-        if ($actualRole !== $credentials['role']) {
             throw ValidationException::withMessages([
-                'email' => sprintf(
-                    'Akun ini terdaftar sebagai %s. Silakan pilih tab login sebagai %s.',
-                    strtoupper($actualRole ?? 'pengguna'),
-                    strtoupper($actualRole ?? 'pengguna')
-                ),
+                'email' => 'Role akun tidak valid. Hubungi administrator untuk memperbaiki akun Anda.',
             ]);
         }
 
-        // 7. Melakukan Autentikasi Login
-        Auth::login($user, $request->boolean('remember'));
+        Auth::guard('web')->login($user, $request->boolean('remember'));
         $request->session()->regenerate();
+        $request->session()->forget('url.intended');
 
-        // 8. Redirect Sesuai Role
-        return redirect()->intended(match ($actualRole) {
-            'admin' => route('dashboard'),
-            'guru'  => route('dashboard'),
-            'siswa' => route('dashboard'),
-            default => route('dashboard'),
+        return redirect()->route(match ($actualRole) {
+            'admin' => 'dashboard',
+            'guru' => 'guru.dashboard',
+            'siswa' => 'dashboard',
         });
     }
 

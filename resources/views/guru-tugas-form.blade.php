@@ -190,6 +190,21 @@
                         <input type="text" name="judul" value="{{ old('judul', $tugas->judul ?? '') }}" required placeholder="Judul Tugas..." class="w-full text-xl font-bold border-0 border-b border-gray-200 focus:border-blue-600 focus:ring-0 p-2 placeholder-gray-300">
                     </div>
 
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1">Materi dan Kelas Tujuan</label>
+                        <select name="materi_id" required class="w-full text-xs border border-gray-200 rounded-xl p-3 bg-gray-50/50 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                            <option value="">Pilih materi</option>
+                            @foreach(($materiList ?? collect()) as $materi)
+                                <option value="{{ $materi->id }}" @selected(old('materi_id', $tugas->materi_id ?? '') == $materi->id)>
+                                    {{ $materi->judul }} — {{ $materi->kelas->nama_kelas ?? 'Kelas' }}
+                                </option>
+                            @endforeach
+                        </select>
+                        @if(($materiList ?? collect())->isEmpty())
+                            <p class="mt-1 text-[11px] text-amber-700">Belum ada materi di kelas yang Anda ampu. Buat materi terlebih dahulu.</p>
+                        @endif
+                    </div>
+
                     <!-- Petunjuk Pengerjaan Tugas -->
                     <div>
                         <input type="text" name="deskripsi" value="{{ old('deskripsi', $tugas->deskripsi ?? '') }}" placeholder="Petunjuk pengerjaan tugas..." class="w-full text-xs border-0 border-b border-gray-100 focus:border-blue-500 focus:ring-0 p-2 text-gray-600 placeholder-gray-300">

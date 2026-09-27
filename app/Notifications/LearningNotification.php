@@ -13,7 +13,8 @@ class LearningNotification extends Notification
         public string $type,
         public string $title,
         public string $message,
-        public ?string $url = null
+        public ?string $url = null,
+        public ?string $eventKey = null
     ) {}
 
     public function via(object $notifiable): array
@@ -28,6 +29,7 @@ class LearningNotification extends Notification
             'title' => $this->title,
             'message' => $this->message,
             'url' => $this->url,
+            'event_key' => $this->eventKey,
         ];
     }
 }

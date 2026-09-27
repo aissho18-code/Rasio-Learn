@@ -10,6 +10,9 @@
 </head>
 <body class="bg-[#F0F5FE] text-slate-800 h-screen w-screen overflow-hidden flex select-none">
     <main class="flex-1 flex flex-col h-full overflow-y-auto items-center justify-center p-6">
+        <div class="mb-4 flex w-full max-w-4xl justify-end">
+            <x-notification-bell />
+        </div>
         <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 max-w-2xl w-full space-y-6">
             <div>
                 <a href="{{ route('siswa.aktivitas.index') }}" class="text-xs text-blue-600 font-semibold hover:underline">← Kembali ke Daftar Aktivitas</a>

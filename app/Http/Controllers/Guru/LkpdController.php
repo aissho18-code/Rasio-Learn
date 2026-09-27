@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Guru;
 use App\Http\Controllers\Controller;
 use App\Models\Kelas;
 use App\Models\Lkpd;
+use App\Notifications\LearningNotification;
+use App\Support\LearningNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -17,7 +19,7 @@ class LkpdController extends Controller
 
         $lkpds = Lkpd::query()
             ->where('guru_id', $guru->id)
-            ->with(['kelas', 'questions'])
+            ->with(['kelas', 'questions', 'submissions.siswa'])
             ->withCount('submissions')
             ->latest()
             ->get();
@@ -27,7 +29,7 @@ class LkpdController extends Controller
 
     public function create(Request $request)
     {
-        $kelasGuru = Kelas::query()->orderBy('nama_kelas')->get();
+        $kelasGuru = Kelas::query()->where('wali_kelas_id', $request->user()->id)->orderBy('nama_kelas')->get();
 
         return view('guru-lkpd-create', [
             'kelasGuru' => $kelasGuru,
@@ -35,7 +37,7 @@ class LkpdController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request, LearningNotificationService $notifications)
     {
         $guru = $request->user();
 
@@ -52,7 +54,13 @@ class LkpdController extends Controller
             'questions.*.gambar' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
         ]);
 
-        DB::transaction(function () use ($request, $data, $guru) {
+        abort_unless(
+            Kelas::whereKey($data['kelas_id'])->where('wali_kelas_id', $guru->id)->exists(),
+            403,
+            'LKPD hanya dapat diterbitkan untuk kelas yang Anda ampu.'
+        );
+
+        $lkpd = DB::transaction(function () use ($request, $data, $guru) {
             $modulPath = $request->hasFile('modul')
                 ? $request->file('modul')->store('lkpd/modul', 'public')
                 : null;
@@ -82,7 +90,17 @@ class LkpdController extends Controller
                     'gambar_path' => $gambarPath,
                 ]);
             }
+
+            return $lkpd;
         });
+
+        $notifications->notifyStudentsInClass((int) $lkpd->kelas_id, new LearningNotification(
+            type: 'activity',
+            title: 'LKPD Baru',
+            message: 'LKPD baru tersedia: ' . $lkpd->judul,
+            url: route('siswa.lkpd.show', $lkpd),
+            eventKey: 'lkpd.published:' . $lkpd->id
+        ));
 
         return redirect()->route('guru.lkpd.index')->with('status', 'LKPD berhasil diterbitkan.');
     }
@@ -91,7 +109,7 @@ class LkpdController extends Controller
     {
         abort_unless((int) $lkpd->guru_id === (int) $request->user()->id, 403);
 
-        $kelasGuru = Kelas::query()->orderBy('nama_kelas')->get();
+        $kelasGuru = Kelas::query()->where('wali_kelas_id', $request->user()->id)->orderBy('nama_kelas')->get();
         $lkpd->load('questions');
 
         return view('guru-lkpd-edit', [
@@ -118,6 +136,12 @@ class LkpdController extends Controller
             'questions.*.rubrik_jawaban' => ['required', 'string'],
             'questions.*.gambar' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
         ]);
+
+        abort_unless(
+            Kelas::whereKey($data['kelas_id'])->where('wali_kelas_id', $guru->id)->exists(),
+            403,
+            'LKPD hanya dapat ditujukan ke kelas yang Anda ampu.'
+        );
 
         DB::transaction(function () use ($request, $data, $lkpd) {
             if ($request->hasFile('modul')) {

@@ -7,6 +7,7 @@ use App\Models\Aktivitas;
 use App\Models\AktivitasSubmission;
 use App\Models\User;
 use App\Notifications\LearningNotification;
+use App\Support\LearningNotificationService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 
@@ -86,8 +87,15 @@ class SiswaAktivitasController extends Controller
         return view('siswa-aktivitas-show', compact('aktivitas', 'submission'));
     }
 
-    public function submit(Request $r, Aktivitas $aktivitas)
+    public function submit(Request $r, Aktivitas $aktivitas, LearningNotificationService $notifications)
     {
+        $kelasId = optional(Auth::user()->siswaProfile)->kelas_id;
+        abort_unless(
+            $aktivitas->status === 'published'
+                && (is_null($aktivitas->kelas_id) || (int) $aktivitas->kelas_id === (int) $kelasId),
+            403
+        );
+
         $r->validate([
             'text_answer' => 'nullable|string',
             'jawaban' => 'nullable|array', // Menerima array jawaban dari blok interaktif
@@ -122,11 +130,12 @@ class SiswaAktivitasController extends Controller
         if (!empty($aktivitas->guru_id)) {
             $guru = User::find($aktivitas->guru_id);
             if ($guru) {
-                $guru->notify(new LearningNotification(
+                $notifications->sendOnce($guru, new LearningNotification(
                     type: 'assignment',
                     title: 'Pengumpulan LKPD Baru',
                     message: Auth::user()->name . ' telah mengumpulkan jawaban pada ' . $aktivitas->judul,
-                    url: route('guru.aktivitas.submissions', $aktivitas->id)
+                    url: route('guru.aktivitas.submissions', $aktivitas->id),
+                    eventKey: 'activity.submitted:' . $submission->id . ':' . $submission->updated_at->timestamp
                 ));
             }
         }

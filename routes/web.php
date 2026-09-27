@@ -30,20 +30,20 @@ Route::get('/', function () {
     return redirect()->route('login');
 });
 
-// Dashboard Utama (Auto-Role Redirect)
+// Dashboard utama mengarahkan berdasarkan role canonical dari akun aktif.
 Route::get('/dashboard', function () {
     $user = auth()->user();
 
-    if ($user->hasRole('admin') || $user->role === 'admin') {
+    if ($user->role === 'admin') {
         $users = \App\Models\User::forRoles(['guru', 'siswa'])->get();
         return view('dashboard-admin', compact('users'));
     }
 
-    if ($user->hasRole('guru') || $user->role === 'guru') {
+    if ($user->role === 'guru') {
         return redirect()->route('guru.dashboard');
     }
     
-    if ($user->hasRole('siswa') || $user->role === 'siswa') {
+    if ($user->role === 'siswa') {
         $kelasId = optional($user->siswaProfile)->kelas_id;
         if (empty($kelasId)) {
             return view('dashboard-siswa-no-class');
@@ -56,7 +56,7 @@ Route::get('/dashboard', function () {
         return view('dashboard-siswa', compact('progressList'));
     }
 
-    return view('dashboard');
+    abort(403, 'Role akun tidak valid. Hubungi administrator.');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 /*
@@ -93,7 +93,7 @@ Route::middleware(['auth'])->group(function () {
     // =========================================================================
     // 🎓 RUTE SISWA
     // =========================================================================
-    Route::prefix('siswa')->name('siswa.')->group(function () {
+    Route::prefix('siswa')->name('siswa.')->middleware('role:siswa')->group(function () {
         
         // Rute yang Dilindungi 'student.has_class'
         Route::middleware(['student.has_class'])->group(function () {
@@ -110,6 +110,7 @@ Route::middleware(['auth'])->group(function () {
             // Ujian Siswa (Terintegrasi SiswaExamController)
             Route::get('/ujian', [SiswaExamController::class, 'index'])->name('ujian.index');
             Route::get('/ujian/{id}', [SiswaExamController::class, 'show'])->whereNumber('id')->name('ujian.show');
+            Route::post('/ujian/{id}/submit', [SiswaExamController::class, 'submit'])->whereNumber('id')->name('ujian.submit');
 
             Route::get('/evaluasi', [SiswaController::class, 'evaluasiIndex'])->name('evaluasi');
             Route::get('/evaluasi/ujian/{id}', [SiswaController::class, 'evaluasiUjianDetail'])->name('evaluasi.ujian.detail');
@@ -138,16 +139,16 @@ Route::middleware(['auth'])->group(function () {
     });
 
     // Alias URL tanda hubung (-) untuk Siswa
-    Route::get('/siswa-materi', [SiswaController::class, 'materiIndex'])->middleware('student.has_class');
-    Route::get('/siswa-tugas', [SiswaController::class, 'indexTugas'])->middleware('student.has_class');
-    Route::get('/siswa-absensi', [SiswaController::class, 'absensi'])->middleware('student.has_class');
-    Route::get('/siswa-ujian', [SiswaExamController::class, 'index'])->middleware('student.has_class');
-    Route::get('/siswa-evaluasi', [SiswaController::class, 'evaluasiIndex'])->middleware('student.has_class');
+    Route::get('/siswa-materi', [SiswaController::class, 'materiIndex'])->middleware(['role:siswa', 'student.has_class']);
+    Route::get('/siswa-tugas', [SiswaController::class, 'indexTugas'])->middleware(['role:siswa', 'student.has_class']);
+    Route::get('/siswa-absensi', [SiswaController::class, 'absensi'])->middleware(['role:siswa', 'student.has_class']);
+    Route::get('/siswa-ujian', [SiswaExamController::class, 'index'])->middleware(['role:siswa', 'student.has_class']);
+    Route::get('/siswa-evaluasi', [SiswaController::class, 'evaluasiIndex'])->middleware(['role:siswa', 'student.has_class']);
 
     // =========================================================================
     // 👨‍🏫 RUTE GURU
     // =========================================================================
-    Route::prefix('guru')->name('guru.')->group(function () {
+    Route::prefix('guru')->name('guru.')->middleware('role:guru')->group(function () {
         Route::get('/dashboard', [GuruController::class, 'dashboard'])->name('dashboard');
 
         // Pengumuman Guru
@@ -232,7 +233,7 @@ Route::middleware(['auth'])->group(function () {
     // =========================================================================
     // ⚙️ RUTE ADMIN
     // =========================================================================
-    Route::prefix('admin')->name('admin.')->group(function () {
+    Route::prefix('admin')->name('admin.')->middleware('role:admin')->group(function () {
         
         // Manajemen Users
         Route::get('users', [UserManagementController::class, 'index'])->name('users');

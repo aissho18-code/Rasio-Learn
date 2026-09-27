@@ -34,8 +34,8 @@
             <div class="grid gap-5 md:grid-cols-2">
                 <div>
                     <label class="mb-1 block text-sm font-bold text-slate-700">Kelas</label>
-                    <select name="kelas_id" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200">
-                        <option value="">Semua Kelas</option>
+                    <select name="kelas_id" required class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200">
+                        <option value="">Pilih kelas</option>
                         @foreach (($kelasList ?? []) as $kelas)
                             <option value="{{ $kelas->id }}" @selected(old('kelas_id', $aktivitas->kelas_id ?? null) == $kelas->id)>
                                 {{ $kelas->nama_kelas }}

@@ -10,9 +10,12 @@
 </head>
 <body class="bg-[#F0F5FE] text-slate-800 p-6 min-h-screen">
     <div class="max-w-2xl mx-auto space-y-4">
-        <a href="{{ url()->previous() }}" class="inline-block text-xs font-bold text-blue-600 hover:underline">
-            ← Kembali
-        </a>
+        <div class="flex items-center justify-between">
+            <a href="{{ url()->previous() }}" class="inline-block text-xs font-bold text-blue-600 hover:underline">
+                ← Kembali
+            </a>
+            <x-notification-bell />
+        </div>
 
         <div class="bg-white rounded-2xl border border-slate-100 p-6 shadow-xs space-y-4">
             <div class="border-b border-slate-100 pb-3">

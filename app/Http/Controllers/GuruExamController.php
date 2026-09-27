@@ -4,7 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\Exam;
+use App\Models\ExamSubmission;
 use App\Models\Kelas;
+use App\Notifications\LearningNotification;
+use App\Support\LearningNotificationService;
 use Illuminate\Http\Request;
 
 class GuruExamController extends Controller
@@ -25,7 +28,14 @@ class GuruExamController extends Controller
             ->latest()
             ->get();
 
-        return view('guru-ujian-index', compact('exams', 'kelasGuru'));
+        $submissions = ExamSubmission::with(['student', 'exam'])
+            ->whereHas('exam', fn ($query) => $query
+                ->where('created_by', $guru->id)
+                ->orWhereIn('kelas_id', $kelasIds))
+            ->latest('submitted_at')
+            ->get();
+
+        return view('guru-ujian-index', compact('exams', 'kelasGuru', 'submissions'));
     }
 
     public function create(Request $request)
@@ -40,7 +50,7 @@ class GuruExamController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request, LearningNotificationService $notifications)
     {
         $guru = $request->user();
 
@@ -55,11 +65,19 @@ class GuruExamController extends Controller
 
         $this->ensureTeacherOwnsClass($guru->id, (int) $data['kelas_id']);
 
-        Exam::create([
+        $exam = Exam::create([
             ...$data,
             'created_by' => $guru->id,
             'locked' => false,
         ]);
+
+        $notifications->notifyStudentsInClass((int) $exam->kelas_id, new LearningNotification(
+            type: 'exam',
+            title: 'Ujian Baru Tersedia',
+            message: 'Ujian ' . $exam->title . ' telah diterbitkan untuk kelas Anda.',
+            url: route('siswa.ujian.index'),
+            eventKey: 'exam.published:' . $exam->id
+        ));
 
         return redirect()
             ->route('guru.ujian.index')

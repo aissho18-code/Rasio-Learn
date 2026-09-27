@@ -78,6 +78,7 @@
     <!-- MAIN CONTENT -->
     <main class="flex-1 flex flex-col h-full overflow-y-auto">
         <header class="px-8 py-4 flex items-center justify-end gap-5">
+            <x-notification-bell />
             <a href="{{ route('profile.show') }}" class="flex items-center gap-3 bg-white px-3.5 py-1.5 rounded-full shadow-xs border border-slate-100 hover:border-blue-300 transition">
                 @if(Auth::user()->avatar)
                     <img src="{{ asset('storage/' . Auth::user()->avatar) }}" alt="Avatar" class="w-8 h-8 rounded-full object-cover">

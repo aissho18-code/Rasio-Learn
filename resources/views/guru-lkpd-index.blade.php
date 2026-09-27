@@ -82,5 +82,28 @@
             </table>
         </div>
     </section>
+
+    @foreach ($lkpds as $lkpd)
+        @if ($lkpd->submissions->isNotEmpty())
+            <section class="space-y-3 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+                <h2 class="text-sm font-bold text-slate-800">Jawaban LKPD: {{ $lkpd->judul }}</h2>
+                @foreach ($lkpd->submissions as $submission)
+                    <details class="rounded-xl border border-slate-200 p-4">
+                        <summary class="cursor-pointer text-xs font-semibold text-slate-700">
+                            {{ $submission->siswa?->name ?? 'Siswa' }} · {{ $submission->submitted_at?->diffForHumans() }}
+                        </summary>
+                        <div class="mt-3 space-y-3 text-xs leading-5 text-slate-600">
+                            @foreach ((array) $submission->jawaban as $questionId => $answer)
+                                <div>
+                                    <p class="font-semibold text-slate-800">{{ $lkpd->questions->firstWhere('id', $questionId)?->pertanyaan ?? 'Jawaban' }}</p>
+                                    <p class="mt-1 whitespace-pre-wrap">{{ $answer }}</p>
+                                </div>
+                            @endforeach
+                        </div>
+                    </details>
+                @endforeach
+            </section>
+        @endif
+    @endforeach
 </div>
 @endsection

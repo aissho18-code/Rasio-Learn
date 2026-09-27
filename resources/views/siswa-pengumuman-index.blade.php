@@ -12,9 +12,12 @@
     <div class="max-w-3xl mx-auto space-y-4">
         <div class="flex items-center justify-between">
             <h1 class="text-lg font-bold text-slate-900">📢 Semua Pengumuman Kelas</h1>
-            <a href="{{ route('dashboard') }}" class="text-xs font-bold text-blue-600 hover:underline">
-                ← Kembali ke Dashboard
-            </a>
+            <div class="flex items-center gap-3">
+                <x-notification-bell />
+                <a href="{{ route('dashboard') }}" class="text-xs font-bold text-blue-600 hover:underline">
+                    ← Kembali ke Dashboard
+                </a>
+            </div>
         </div>
 
         <div class="space-y-3">

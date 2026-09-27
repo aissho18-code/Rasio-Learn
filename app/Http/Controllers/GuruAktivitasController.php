@@ -7,6 +7,7 @@ use App\Models\Aktivitas;
 use App\Models\Kelas;
 use App\Models\User;
 use App\Notifications\LearningNotification;
+use App\Support\LearningNotificationService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
@@ -26,12 +27,12 @@ class GuruAktivitasController extends Controller
 
     public function create()
     {
-        $kelasList = Kelas::orderBy('nama_kelas')->get();
+        $kelasList = Kelas::where('wali_kelas_id', Auth::id())->orderBy('nama_kelas')->get();
         $aktivitas = new Aktivitas();
         return view('guru-aktivitas-create', compact('kelasList', 'aktivitas'));
     }
 
-    public function store(Request $r)
+    public function store(Request $r, LearningNotificationService $notifications)
     {
         $r->validate([
             'judul' => 'required|string|max:255',
@@ -40,10 +41,16 @@ class GuruAktivitasController extends Controller
             'pertanyaan' => 'nullable|string',
             'respons_type' => 'nullable|in:file,text,both,interaktif',
             'lkpd' => 'nullable|file|mimes:pdf,doc,docx,png,jpg,jpeg|max:10240',
-            'kelas_id' => 'nullable|exists:kelas,id',
+            'kelas_id' => 'required|exists:kelas,id',
             'status' => 'nullable|in:draft,published',
             'blocks' => 'nullable|array',
         ]);
+
+        abort_unless(
+            Kelas::whereKey($r->kelas_id)->where('wali_kelas_id', Auth::id())->exists(),
+            403,
+            'Aktivitas hanya dapat ditujukan ke kelas yang Anda ampu.'
+        );
 
         $aktivitas = DB::transaction(function () use ($r) {
             $data = $r->only(['judul', 'tujuan', 'petunjuk', 'pertanyaan', 'respons_type', 'kelas_id']);
@@ -80,20 +87,15 @@ class GuruAktivitasController extends Controller
 
         // 3. Kirim Notifikasi ke Siswa jika Status = Published
         if ($aktivitas->status === 'published') {
-            $siswaList = User::whereHas('siswaProfile', function ($q) use ($aktivitas) {
-                if ($aktivitas->kelas_id) {
-                    $q->where('kelas_id', $aktivitas->kelas_id);
-                }
-            })->get();
+            $notification = new LearningNotification(
+                type: 'activity',
+                title: 'Aktivitas & LKPD Baru',
+                message: 'Guru menerbitkan aktivitas baru: ' . $aktivitas->judul,
+                url: route('siswa.aktivitas.show', $aktivitas),
+                eventKey: 'activity.published:' . $aktivitas->id . ':' . $aktivitas->kelas_id
+            );
 
-            foreach ($siswaList as $siswa) {
-                $siswa->notify(new LearningNotification(
-                    type: 'activity',
-                    title: 'Aktivitas & LKPD Baru',
-                    message: 'Guru menerbitkan aktivitas baru: ' . $aktivitas->judul,
-                    url: route('siswa.aktivitas.index')
-                ));
-            }
+            $notifications->notifyStudentsInClass((int) $aktivitas->kelas_id, $notification);
         }
 
         return redirect()->route('guru.aktivitas.index')->with('status', 'Aktivitas berhasil disimpan.');
@@ -102,12 +104,12 @@ class GuruAktivitasController extends Controller
     public function edit($id)
     {
         $aktivitas = Aktivitas::with('blocks')->where('guru_id', Auth::id())->findOrFail($id);
-        $kelasList = Kelas::orderBy('nama_kelas')->get();
+        $kelasList = Kelas::where('wali_kelas_id', Auth::id())->orderBy('nama_kelas')->get();
 
         return view('guru-aktivitas-create', compact('aktivitas', 'kelasList'));
     }
 
-    public function update(Request $r, $id)
+    public function update(Request $r, $id, LearningNotificationService $notifications)
     {
         $aktivitas = Aktivitas::where('guru_id', Auth::id())->findOrFail($id);
 
@@ -115,10 +117,18 @@ class GuruAktivitasController extends Controller
             'judul' => 'required|string|max:255',
             'tujuan' => 'nullable|string',
             'petunjuk' => 'nullable|string',
-            'kelas_id' => 'nullable|exists:kelas,id',
+            'kelas_id' => 'required|exists:kelas,id',
             'status' => 'nullable|in:draft,published',
             'blocks' => 'nullable|array',
         ]);
+
+        abort_unless(
+            Kelas::whereKey($r->kelas_id)->where('wali_kelas_id', Auth::id())->exists(),
+            403,
+            'Aktivitas hanya dapat ditujukan ke kelas yang Anda ampu.'
+        );
+
+        $wasPublished = $aktivitas->status === 'published';
 
         DB::transaction(function () use ($r, $aktivitas) {
             $data = $r->only(['judul', 'tujuan', 'petunjuk', 'pertanyaan', 'respons_type', 'kelas_id']);
@@ -147,6 +157,17 @@ class GuruAktivitasController extends Controller
                 }
             }
         });
+
+        $aktivitas->refresh();
+        if ($aktivitas->status === 'published' && !$wasPublished) {
+            $notifications->notifyStudentsInClass((int) $aktivitas->kelas_id, new LearningNotification(
+                type: 'activity',
+                title: 'Aktivitas & LKPD Baru',
+                message: 'Guru menerbitkan aktivitas baru: ' . $aktivitas->judul,
+                url: route('siswa.aktivitas.show', $aktivitas),
+                eventKey: 'activity.published:' . $aktivitas->id . ':' . $aktivitas->kelas_id
+            ));
+        }
 
         return redirect()->route('guru.aktivitas.index')->with('status', 'Aktivitas berhasil diperbarui.');
     }

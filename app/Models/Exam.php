@@ -37,4 +37,9 @@ class Exam extends Model
     {
         return $this->hasMany(ProctorLog::class, 'exam_id');
     }
+
+    public function submissions()
+    {
+        return $this->hasMany(ExamSubmission::class);
+    }
 }

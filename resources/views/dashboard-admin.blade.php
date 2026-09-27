@@ -91,6 +91,7 @@
         
         <!-- HEADER TOP BAR -->
         <header class="px-8 py-4 flex items-center justify-end gap-5">
+            <x-notification-bell />
             <a href="{{ route('profile.show') }}" class="flex items-center gap-3 bg-white px-3.5 py-1.5 rounded-full shadow-xs border border-slate-100 hover:border-blue-300 transition">
                 @if(Auth::user()->avatar)
                     <img src="{{ asset('storage/' . Auth::user()->avatar) }}" alt="Avatar" class="w-8 h-8 rounded-full object-cover">
@@ -144,7 +145,7 @@
                     <p class="text-[11px] text-gray-400 mt-0.5">Daftarkan pengguna baru ke dalam sistem pembelajaran Ratio Learn.</p>
                 </div>
 
-                <form action="{{ route('admin.users.store') }}" method="POST" class="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+                <form action="{{ route('admin.users.store') }}" method="POST" class="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
                     @csrf
                     <div>
                         <label class="block text-[11px] font-bold text-gray-700 mb-1">Nama Lengkap</label>
@@ -157,6 +158,10 @@
                     <div>
                         <label class="block text-[11px] font-bold text-gray-700 mb-1">Password</label>
                         <input type="password" name="password" required placeholder="Kata sandi..." class="w-full text-xs border border-gray-200 rounded-xl p-3 bg-gray-50/50 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-gray-700 mb-1">Konfirmasi Password</label>
+                        <input type="password" name="password_confirmation" required placeholder="Ulangi kata sandi..." class="w-full text-xs border border-gray-200 rounded-xl p-3 bg-gray-50/50 focus:ring-2 focus:ring-blue-500 focus:outline-none">
                     </div>
                     <div>
                         <label class="block text-[11px] font-bold text-gray-700 mb-1">Peran (Role)</label>

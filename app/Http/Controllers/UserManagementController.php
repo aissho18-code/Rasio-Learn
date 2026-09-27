@@ -8,6 +8,8 @@ use App\Models\Kelas;
 use App\Models\SiswaProfile;
 use App\Models\GuruProfile;
 use Illuminate\Support\Facades\Hash;
+use App\Notifications\LearningNotification;
+use App\Support\LearningNotificationService;
 use Spatie\Permission\Models\Role;
 
 class UserManagementController extends Controller
@@ -25,7 +27,7 @@ class UserManagementController extends Controller
         return view('admin-users-form', ['user' => new User(), 'roles' => $roles, 'kelas' => $kelas]);
     }
 
-    public function store(Request $r)
+    public function store(Request $r, LearningNotificationService $notifications)
     {
         $data = $r->validate([
             'name' => 'required|string|max:255',
@@ -64,6 +66,28 @@ class UserManagementController extends Controller
             Kelas::whereKey($data['kelas_id'])->update(['wali_kelas_id' => $user->id]);
         }
 
+        $notifications->sendOnce($user, new LearningNotification(
+            type: 'system',
+            title: 'Akun Berhasil Dibuat',
+            message: 'Akun Ratio Learn Anda sudah siap digunakan.',
+            url: route('dashboard'),
+            eventKey: 'account.created:' . $user->id . ':welcome'
+        ));
+        $notifications->sendOnce($r->user(), new LearningNotification(
+            type: 'system',
+            title: 'Akun Baru Dibuat',
+            message: 'Akun ' . $user->name . ' berhasil ditambahkan.',
+            url: route('admin.users.edit', $user),
+            eventKey: 'account.created:' . $user->id . ':admin'
+        ));
+        $notifications->notifyOtherAdmins($r->user()->id, new LearningNotification(
+            type: 'system',
+            title: 'Akun Baru Dibuat',
+            message: 'Akun ' . $user->name . ' (' . $user->role . ') telah ditambahkan.',
+            url: route('admin.users.index'),
+            eventKey: 'account.created:' . $user->id . ':admin'
+        ));
+
         return redirect()->route('admin.users.index')->with('status', 'Pengguna berhasil dibuat.');
     }
 
@@ -77,7 +101,7 @@ class UserManagementController extends Controller
         return view('admin-users-form', compact('user', 'roles', 'kelas', 'kelasId'));
     }
 
-    public function update(Request $r, User $user)
+    public function update(Request $r, User $user, LearningNotificationService $notifications)
     {
         $data = $r->validate([
             'name' => 'required|string|max:255',
@@ -130,11 +154,41 @@ class UserManagementController extends Controller
             Kelas::where('wali_kelas_id', $user->id)->update(['wali_kelas_id' => null]);
         }
 
+        $notifications->sendOnce($user, new LearningNotification(
+            type: 'system',
+            title: 'Akun Diperbarui',
+            message: 'Profil dan akses akun Anda telah diperbarui oleh Admin.',
+            url: route('profile.show'),
+            eventKey: 'account.updated:' . $user->id . ':' . $user->updated_at->timestamp
+        ));
+        $notifications->sendOnce($r->user(), new LearningNotification(
+            type: 'system',
+            title: 'Akun Diperbarui',
+            message: 'Data akun ' . $user->name . ' berhasil diperbarui.',
+            url: route('admin.users.edit', $user),
+            eventKey: 'account.updated:' . $user->id . ':' . $user->updated_at->timestamp . ':admin'
+        ));
+        $notifications->notifyOtherAdmins($r->user()->id, new LearningNotification(
+            type: 'system',
+            title: 'Akun Diperbarui',
+            message: 'Data akun ' . $user->name . ' telah diperbarui.',
+            url: route('admin.users.edit', $user),
+            eventKey: 'account.updated:' . $user->id . ':' . $user->updated_at->timestamp . ':admin'
+        ));
+
         return redirect()->route('admin.users.index')->with('status', 'Pengguna berhasil diperbarui.');
     }
 
-    public function destroy(User $user)
+    public function destroy(User $user, LearningNotificationService $notifications)
     {
+        $notifications->notifyOtherAdmins(auth()->id(), new LearningNotification(
+            type: 'system',
+            title: 'Akun Dihapus',
+            message: 'Akun ' . $user->name . ' (' . $user->role . ') telah dihapus.',
+            url: route('admin.users.index'),
+            eventKey: 'account.deleted:' . $user->id . ':' . now()->timestamp
+        ));
+
         $user->delete();
         return back()->with('status', 'Pengguna berhasil dihapus.');
     }

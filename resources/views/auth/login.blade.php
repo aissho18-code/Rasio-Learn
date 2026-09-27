@@ -61,8 +61,8 @@
     </div>
 
     <!-- MAIN CONTAINER TERKUNCI -->
-    <div class="w-full max-w-5xl z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center max-h-[100dvh]"
-         x-data="{ role: '{{ old('role', $loginRole ?? 'siswa') }}', showPassword: false }">
+        <div class="w-full max-w-5xl z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center max-h-[100dvh]"
+            x-data="{ showPassword: false }">
         
         <!-- KOLOM KIRI: HERO BRANDING & ILUSTRASI -->
         <div class="lg:col-span-6 flex flex-col justify-center px-2 md:px-4">
@@ -98,23 +98,9 @@
         <div class="lg:col-span-6">
             <div class="bg-white rounded-[28px] shadow-[0_20px_50px_rgba(37,99,235,0.07)] border border-slate-100/80 p-6 md:p-8 space-y-5 relative">
                 
-                <!-- Header Form & Tombol Admin -->
-                <div class="flex items-start justify-between gap-2">
-                    <div>
-                        <h2 class="text-xl font-bold text-slate-900 tracking-tight">Login ke Akunmu</h2>
-                        <p class="text-[11px] font-medium text-slate-400 mt-0.5">
-                            Role Aktif: <span class="font-bold uppercase text-blue-600" x-text="role"></span>
-                        </p>
-                    </div>
-
-                    <!-- Toggle Quick Access Portal Admin -->
-                    <button type="button" 
-                            @click="role = (role === 'admin' ? 'siswa' : 'admin')"
-                            :class="role === 'admin' ? 'bg-blue-600 text-white border-blue-600 font-bold' : 'bg-slate-50 text-slate-500 border-slate-200/80 hover:bg-slate-100 font-medium'"
-                            class="px-3 py-1.5 text-[10px] rounded-full border transition flex items-center gap-1.5 shrink-0 shadow-2xs">
-                        <span class="text-[11px]">⚙️</span>
-                        <span x-text="role === 'admin' ? 'Kembali' : 'Portal Admin'"></span>
-                    </button>
+                <div>
+                    <h2 class="text-xl font-bold text-slate-900 tracking-tight">Login ke Akunmu</h2>
+                    <p class="text-[11px] font-medium text-slate-400 mt-0.5">Portal ditentukan otomatis dari role yang tersimpan pada akun.</p>
                 </div>
 
                 <!-- ALERT ERROR VALIDASI -->
@@ -126,33 +112,9 @@
                     </div>
                 @endif
 
-                <!-- TAB PEMILIHAN ROLE (SISWA / GURU) -->
-                <div class="flex bg-[#F1F5F9] p-1 rounded-2xl gap-1" x-show="role !== 'admin'">
-                    <button type="button" 
-                            @click="role = 'siswa'"
-                            :class="role === 'siswa' ? 'bg-[#E0EDFF] text-[#2563EB] font-bold shadow-2xs' : 'text-slate-500 font-semibold hover:text-slate-700'"
-                            class="flex-1 py-2.5 text-xs rounded-xl transition flex items-center justify-center gap-2">
-                        <span class="text-sm">🎓</span> Siswa
-                    </button>
-                    <button type="button" 
-                            @click="role = 'guru'"
-                            :class="role === 'guru' ? 'bg-[#E0EDFF] text-[#2563EB] font-bold shadow-2xs' : 'text-slate-500 font-semibold hover:text-slate-700'"
-                            class="flex-1 py-2.5 text-xs rounded-xl transition flex items-center justify-center gap-2">
-                        <span class="text-sm">👨‍🏫</span> Guru
-                    </button>
-                </div>
-
-                <!-- NOTIFIKASI INDIKATOR ROLE ADMIN -->
-                <div x-show="role === 'admin'" x-cloak class="p-2.5 bg-blue-50 border border-blue-200 text-blue-700 rounded-xl text-xs font-semibold flex items-center gap-2">
-                    <span>🛡️</span> Anda sedang berada di mode Login Administrator
-                </div>
-
                 <!-- FORM LOGIN -->
                 <form method="POST" action="{{ route('login') }}" class="space-y-4">
                     @csrf
-                    
-                    <!-- Input Hidden Role terikat dengan Alpine -->
-                    <input type="hidden" name="role" :value="role">
 
                     <!-- Field Input Email / Username -->
                     <div class="space-y-1.5">

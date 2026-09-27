@@ -16,7 +16,10 @@
                     <h1 class="text-xl font-bold text-slate-900">📥 Jawaban Siswa: {{ $aktivitas->judul }}</h1>
                     <p class="text-xs text-slate-500">Kelas: {{ optional($aktivitas->kelas)->nama_kelas ?? 'Semua Kelas' }}</p>
                 </div>
-                <a href="{{ route('guru.aktivitas.index') }}" class="text-xs text-blue-600 font-semibold hover:underline">← Kembali ke Daftar</a>
+                <div class="flex items-center gap-3">
+                    <x-notification-bell />
+                    <a href="{{ route('guru.aktivitas.index') }}" class="text-xs text-blue-600 font-semibold hover:underline">← Kembali ke Daftar</a>
+                </div>
             </div>
 
             <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 overflow-x-auto">

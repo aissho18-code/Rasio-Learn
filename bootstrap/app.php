@@ -10,6 +10,9 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
+    ->withCommands([
+        __DIR__.'/../app/Console/Commands',
+    ])
     ->withMiddleware(function (Middleware $middleware) {
         // 1. Percayai proxy Cloudflare Tunnel (HTTPS) untuk mencegah error 419 Page Expired
         $middleware->trustProxies(at: '*');
@@ -17,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // 2. Daftarkan Alias Middleware Siswa
         $middleware->alias([
             'student.has_class' => \App\Http\Middleware\EnsureStudentHasClass::class,
+            'role' => \App\Http\Middleware\EnsureUserHasRole::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

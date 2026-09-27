@@ -19,7 +19,9 @@ use App\Models\Tugas;
 use App\Models\Refleksi;
 use App\Models\RefleksiSubmission;
 use App\Models\Pengumuman;
+use App\Notifications\LearningNotification;
 use App\Support\MarkdownRenderer; // Impor class MarkdownRenderer
+use App\Support\LearningNotificationService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
@@ -125,8 +127,9 @@ class GuruController extends Controller
     // 1. Menampilkan halaman daftar materi untuk guru (Card Grid Style) + Markdown Render
     public function materiIndex(MarkdownRenderer $markdownRenderer)
     {
-        // Mengambil data materi dari database
-        $materiList = Materi::orderBy('urutan', 'asc')->get();
+        $kelasIds = Kelas::where('wali_kelas_id', Auth::id())->pluck('id');
+        $materiList = Materi::whereIn('kelas_id', $kelasIds)->orderBy('urutan', 'asc')->get();
+        $kelasList = Kelas::whereIn('id', $kelasIds)->orderBy('nama_kelas')->get();
 
         // Render Markdown pada kolom konten untuk setiap materi
         $materiList->transform(function ($item) use ($markdownRenderer) {
@@ -135,15 +138,16 @@ class GuruController extends Controller
         });
 
         // Mengirim variabel $materiList ke view 'guru-materi'
-        return view('guru-materi', compact('materiList'));
+        return view('guru-materi', compact('materiList', 'kelasList'));
     }
 
     // 2. Menyimpan materi baru + Unggah File + Pekan
-    public function materiStore(Request $request)
+    public function materiStore(Request $request, LearningNotificationService $notifications)
     {
         $request->validate([
             'judul' => 'required|string|max:255',
             'pekan' => 'required|string|max:50',
+            'kelas_id' => 'required|exists:kelas,id',
             'konten' => 'nullable|string',
             'file_materi' => 'nullable|file|mimes:pdf,doc,docx,ppt,pptx|max:10240',
         ]);
@@ -153,20 +157,33 @@ class GuruController extends Controller
             $filePath = $request->file('file_materi')->store('materi_files', 'public');
         }
 
-        $mapel = MataPelajaran::firstOrCreate(['nama_mapel' => 'Matematika']);
-        $kelas = Kelas::firstOrCreate(['nama_kelas' => 'Kelas VII']);
-        $nextUrutan = Materi::where('mapel_id', $mapel->id)->count() + 1;
+        abort_unless(
+            Kelas::whereKey($request->kelas_id)->where('wali_kelas_id', Auth::id())->exists(),
+            403,
+            'Materi hanya dapat diterbitkan untuk kelas yang Anda ampu.'
+        );
 
-        Materi::create([
+        $mapel = MataPelajaran::firstOrCreate(['nama_mapel' => 'Matematika']);
+        $nextUrutan = Materi::where('mapel_id', $mapel->id)->where('kelas_id', $request->kelas_id)->count() + 1;
+
+        $materi = Materi::create([
             'judul' => $request->judul,
             'pekan' => $request->pekan,
             'konten' => $request->konten ?? 'Materi Pembelajaran',
             'file_path' => $filePath,
             'mapel_id' => $mapel->id,
-            'kelas_id' => $kelas->id,
+            'kelas_id' => $request->kelas_id,
             'urutan' => $nextUrutan,
             'status' => 'aktif',
         ]);
+
+        $notifications->notifyStudentsInClass((int) $materi->kelas_id, new LearningNotification(
+            type: 'material',
+            title: 'Materi Baru',
+            message: 'Materi baru tersedia: ' . $materi->judul,
+            url: route('siswa.materi.show', $materi->id),
+            eventKey: 'material.published:' . $materi->id
+        ));
 
         return redirect()->route('guru.materi.index')->with('success', 'Modul materi baru berhasil dipublikasikan!');
     }
@@ -181,7 +198,8 @@ class GuruController extends Controller
             'file_materi' => 'nullable|file|mimes:pdf,doc,docx,ppt,pptx|max:10240',
         ]);
 
-        $materi = Materi::findOrFail($id);
+        $kelasIds = Kelas::where('wali_kelas_id', Auth::id())->pluck('id');
+        $materi = Materi::whereIn('kelas_id', $kelasIds)->findOrFail($id);
 
         if ($request->hasFile('file_materi')) {
             if ($materi->file_path && Storage::disk('public')->exists($materi->file_path)) {
@@ -200,7 +218,7 @@ class GuruController extends Controller
     }
 
     // 4. Mengubah Status Lock / Unlock Materi
-    public function materiToggleLock($id)
+    public function materiToggleLock($id, LearningNotificationService $notifications)
     {
         $materi = Materi::findOrFail($id);
         $newStatus = $materi->status === 'aktif' ? 'terkunci' : 'aktif';
@@ -208,6 +226,16 @@ class GuruController extends Controller
         $materi->update([
             'status' => $newStatus
         ]);
+
+        if ($newStatus === 'aktif') {
+            $notifications->notifyStudentsInClass((int) $materi->kelas_id, new LearningNotification(
+                type: 'material',
+                title: 'Materi Dibuka',
+                message: 'Materi ' . $materi->judul . ' sekarang dapat diakses.',
+                url: route('siswa.materi.show', $materi->id),
+                eventKey: 'material.unlocked:' . $materi->id . ':' . $materi->updated_at->timestamp
+            ));
+        }
 
         $pesan = $newStatus === 'aktif' ? 'Materi berhasil dibuka (Unlocked) untuk siswa!' : 'Materi berhasil dikunci (Locked).';
         return redirect()->route('guru.materi.index')->with('success', $pesan);
@@ -247,7 +275,10 @@ class GuruController extends Controller
     // 1. Menampilkan Dashboard Daftar Tugas Guru (Grid Card View)
     public function tugasIndex()
     {
-        $tugasList = Tugas::orderBy('created_at', 'desc')->get();
+        $kelasIds = Kelas::where('wali_kelas_id', Auth::id())->pluck('id');
+        $tugasList = Tugas::whereHas('materi', fn ($query) => $query->whereIn('kelas_id', $kelasIds))
+            ->orderBy('created_at', 'desc')
+            ->get();
         $tugases = $tugasList;
         return view('guru-tugas-index', compact('tugasList', 'tugases'));
     }
@@ -255,13 +286,17 @@ class GuruController extends Controller
     // 2. Menampilkan Form Buat Tugas Baru
     public function tugasCreate()
     {
-        return view('guru-tugas-form');
+        $kelasIds = Kelas::where('wali_kelas_id', Auth::id())->pluck('id');
+        $materiList = Materi::whereIn('kelas_id', $kelasIds)->orderBy('judul')->get();
+
+        return view('guru-tugas-form', compact('materiList'));
     }
 
     // 3. Menyimpan Tugas Baru (Otomatis Mengisi materi_id)
-    public function tugasStore(Request $request)
+    public function tugasStore(Request $request, LearningNotificationService $notifications)
     {
         $request->validate([
+            'materi_id' => 'required|exists:materi,id',
             'judul' => 'required|string|max:255',
             'pekan' => 'nullable|string|max:50',
             'tenggat_waktu' => 'required',
@@ -269,28 +304,15 @@ class GuruController extends Controller
             'file_tugas' => 'nullable|file|mimes:pdf,doc,docx,ppt,pptx,jpg,jpeg,png,zip,rar|max:10240',
         ]);
 
-        // Cari materi pertama atau buat default jika materi belum ada di database
-        $materi = Materi::first();
-        if (!$materi) {
-            $mapel = MataPelajaran::firstOrCreate(['nama_mapel' => 'Matematika']);
-            $kelas = Kelas::firstOrCreate(['nama_kelas' => 'Kelas VII']);
-            $materi = Materi::create([
-                'judul' => 'Materi Umums',
-                'pekan' => 'Pekan 1',
-                'konten' => 'Materi Default Tugas',
-                'mapel_id' => $mapel->id,
-                'kelas_id' => $kelas->id,
-                'urutan' => 1,
-                'status' => 'aktif',
-            ]);
-        }
+        $kelasIds = Kelas::where('wali_kelas_id', Auth::id())->pluck('id');
+        $materi = Materi::whereIn('kelas_id', $kelasIds)->findOrFail($request->materi_id);
 
         $filePath = null;
         if ($request->hasFile('file_tugas')) {
             $filePath = $request->file('file_tugas')->store('tugas_files', 'public');
         }
 
-        Tugas::create([
+        $tugas = Tugas::create([
             'materi_id' => $materi->id,
             'judul' => $request->judul,
             'pekan' => $request->pekan ?? 'Pekan 1',
@@ -300,20 +322,32 @@ class GuruController extends Controller
             'status' => 'aktif',
         ]);
 
+        $notifications->notifyStudentsInClass((int) $materi->kelas_id, new LearningNotification(
+            type: 'assignment',
+            title: 'Tugas Baru',
+            message: 'Tugas baru tersedia: ' . $tugas->judul,
+            url: route('siswa.tugas.show', $tugas->id),
+            eventKey: 'task.published:' . $tugas->id
+        ));
+
         return redirect()->route('guru.tugas.index')->with('success', 'Paket tugas baru berhasil dipublikasikan!');
     }
 
     // 4. Menampilkan Form Edit Tugas
     public function tugasEdit($id)
     {
-        $tugas = Tugas::findOrFail($id);
-        return view('guru-tugas-form', compact('tugas'));
+        $kelasIds = Kelas::where('wali_kelas_id', Auth::id())->pluck('id');
+        $tugas = Tugas::whereHas('materi', fn ($query) => $query->whereIn('kelas_id', $kelasIds))
+            ->findOrFail($id);
+        $materiList = Materi::whereIn('kelas_id', $kelasIds)->orderBy('judul')->get();
+
+        return view('guru-tugas-form', compact('tugas', 'materiList'));
     }
 
-    // 5. Memperbarui Tugas
     public function tugasUpdate(Request $request, $id)
     {
         $request->validate([
+            'materi_id' => 'required|exists:materi,id',
             'judul' => 'required|string|max:255',
             'pekan' => 'nullable|string|max:50',
             'tenggat_waktu' => 'required',
@@ -321,7 +355,10 @@ class GuruController extends Controller
             'file_tugas' => 'nullable|file|mimes:pdf,doc,docx,ppt,pptx,jpg,jpeg,png,zip,rar|max:10240',
         ]);
 
-        $tugas = Tugas::findOrFail($id);
+        $kelasIds = Kelas::where('wali_kelas_id', Auth::id())->pluck('id');
+        $tugas = Tugas::whereHas('materi', fn ($query) => $query->whereIn('kelas_id', $kelasIds))
+            ->findOrFail($id);
+        $materi = Materi::whereIn('kelas_id', $kelasIds)->findOrFail($request->materi_id);
 
         if ($request->hasFile('file_tugas')) {
             if ($tugas->file_path && Storage::disk('public')->exists($tugas->file_path)) {
@@ -331,6 +368,7 @@ class GuruController extends Controller
         }
 
         $tugas->update([
+            'materi_id' => $materi->id,
             'judul' => $request->judul,
             'pekan' => $request->pekan ?? 'Pekan 1',
             'tenggat_waktu' => $request->tenggat_waktu,
@@ -343,7 +381,9 @@ class GuruController extends Controller
     // 6. Menghapus Tugas
     public function tugasDestroy($id)
     {
-        $tugas = Tugas::findOrFail($id);
+        $kelasIds = Kelas::where('wali_kelas_id', Auth::id())->pluck('id');
+        $tugas = Tugas::whereHas('materi', fn ($query) => $query->whereIn('kelas_id', $kelasIds))
+            ->findOrFail($id);
         if ($tugas->file_path && Storage::disk('public')->exists($tugas->file_path)) {
             Storage::disk('public')->delete($tugas->file_path);
         }
@@ -431,7 +471,7 @@ class GuruController extends Controller
     // Menampilkan daftar tugas & ujian yang dikumpulkan siswa
     public function penilaianIndex()
     {
-        $submissions = Submission::with(['tugas.materi.mapel', 'siswa'])
+        $submissions = $this->teacherSubmissions()->with(['tugas.materi.mapel', 'siswa'])
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -442,6 +482,34 @@ class GuruController extends Controller
         return view('guru-penilaian', compact('submissions', 'ujianSubmissions'));
     }
 
+    private function teacherSubmissions()
+    {
+        $kelasIds = Kelas::where('wali_kelas_id', Auth::id())->select('id');
+
+        return Submission::whereHas('tugas.materi', fn ($query) => $query->whereIn('kelas_id', $kelasIds));
+    }
+
+    private function notifyStudentGrade(
+        ?User $student,
+        string $title,
+        string $message,
+        string $url,
+        string $eventKey,
+        LearningNotificationService $notifications
+    ): void {
+        if (!$student) {
+            return;
+        }
+
+        $notifications->sendOnce($student, new LearningNotification(
+            type: 'feedback',
+            title: $title,
+            message: $message,
+            url: $url,
+            eventKey: $eventKey
+        ));
+    }
+
     // Menampilkan Laman Detail Pemeriksaan Ujian per Siswa
     public function penilaianUjianDetail($id)
     {
@@ -450,25 +518,35 @@ class GuruController extends Controller
     }
 
     // Menyimpan nilai dan catatan evaluasi tugas dari guru
-    public function storePenilaian(Request $request, $id)
+    public function storePenilaian(Request $request, $id, LearningNotificationService $notifications)
     {
         $request->validate([
             'nilai' => 'required|integer|min:0|max:100',
             'catatan_guru' => 'nullable|string|max:500',
         ]);
 
-        $submission = Submission::findOrFail($id);
+        $submission = $this->teacherSubmissions()->findOrFail($id);
         $submission->update([
             'nilai' => $request->nilai,
             'catatan_guru' => $request->catatan_guru,
             'status' => 'dinilai',
         ]);
 
+        $submission->loadMissing(['siswa', 'tugas']);
+        $this->notifyStudentGrade(
+            $submission->siswa,
+            'Penilaian Tugas Tersedia',
+            'Nilai dan feedback untuk tugas ' . $submission->tugas?->judul . ' sudah tersedia.',
+            route('siswa.evaluasi'),
+            'task.graded:' . $submission->id . ':' . $submission->updated_at->timestamp,
+            $notifications
+        );
+
         return redirect()->back()->with('success', 'Nilai dan evaluasi tugas berhasil disimpan!');
     }
 
     // Menyimpan Penilaian Ujian (Nilai dan Rekomendasi Belajar)
-    public function storePenilaianUjian(Request $request, $id)
+    public function storePenilaianUjian(Request $request, $id, LearningNotificationService $notifications)
     {
         $request->validate([
             'nilai' => 'required|integer|min:0|max:100',
@@ -482,13 +560,23 @@ class GuruController extends Controller
             'status' => 'dinilai',
         ]);
 
+        $sub->loadMissing(['siswa', 'ujian']);
+        $this->notifyStudentGrade(
+            $sub->siswa,
+            'Hasil Kuis Tersedia',
+            'Hasil kuis ' . $sub->ujian?->judul_ujian . ' dan rekomendasi belajar sudah tersedia.',
+            route('siswa.evaluasi.ujian.detail', $sub->id),
+            'quiz.graded:' . $sub->id . ':' . $sub->updated_at->timestamp,
+            $notifications
+        );
+
         return redirect()->route('guru.penilaian.index')->with('success', 'Penilaian dan rekomendasi belajar ujian siswa berhasil disimpan!');
     }
 
     // Fungsi simulasi Penilaian Tugas dengan Bantuan AI
     public function nilaiDenganAi($id)
     {
-        $submission = Submission::findOrFail($id);
+        $submission = $this->teacherSubmissions()->findOrFail($id);
 
         $jawabanSiswa = strtolower($submission->jawaban);
         $skorAi = 85; 
@@ -511,19 +599,29 @@ class GuruController extends Controller
     }
 
     // Fungsi untuk menyimpan revisi/modifikasi nilai final oleh Guru (Tugas)
-    public function updateNilaiFinal(Request $request, $id)
+    public function updateNilaiFinal(Request $request, $id, LearningNotificationService $notifications)
     {
         $request->validate([
             'final_score' => 'required|numeric|min:0|max:100',
             'final_feedback' => 'required|string',
         ]);
 
-        $submission = Submission::findOrFail($id);
+        $submission = $this->teacherSubmissions()->findOrFail($id);
         $submission->update([
             'final_score' => $request->final_score,
             'final_feedback' => $request->final_feedback,
             'status' => 'selesai',
         ]);
+
+        $submission->loadMissing(['siswa', 'tugas']);
+        $this->notifyStudentGrade(
+            $submission->siswa,
+            'Nilai dan Feedback Tersedia',
+            'Nilai akhir dan feedback untuk tugas ' . $submission->tugas?->judul . ' sudah tersedia.',
+            route('siswa.evaluasi'),
+            'task.final-graded:' . $submission->id . ':' . $submission->updated_at->timestamp,
+            $notifications
+        );
 
         return redirect()->back()->with('success', 'Nilai dan feedback final berhasil disimpan!');
     }
@@ -604,14 +702,14 @@ class GuruController extends Controller
     // Menampilkan Laman Detail Pemeriksaan Tugas per Siswa
     public function penilaianTugasDetail($id)
     {
-        $sub = Submission::with(['siswa', 'tugas.materi.mapel'])->findOrFail($id);
+        $sub = $this->teacherSubmissions()->with(['siswa', 'tugas.materi.mapel'])->findOrFail($id);
         return view('guru-penilaian-tugas-detail', compact('sub'));
     }
 
     // AI Auto-Correct & Umpan Balik Otomatis untuk Tugas
     public function aiAutoCorrectTugas($id)
     {
-        $sub = Submission::with('tugas')->findOrFail($id);
+        $sub = $this->teacherSubmissions()->with('tugas')->findOrFail($id);
 
         $jawabanSiswa = trim((string) $sub->jawaban);
         $hasFile = !empty($sub->file_path) && Storage::disk('public')->exists($sub->file_path);
@@ -659,14 +757,14 @@ class GuruController extends Controller
     }
 
     // Menyimpan Penilaian Final Tugas dari Guru
-    public function storePenilaianTugas(Request $request, $id)
+    public function storePenilaianTugas(Request $request, $id, LearningNotificationService $notifications)
     {
         $request->validate([
             'nilai' => 'required|integer|min:0|max:100',
             'catatan_guru' => 'required|string',
         ]);
 
-        $sub = Submission::findOrFail($id);
+        $sub = $this->teacherSubmissions()->findOrFail($id);
 
         $updateData = [
             'nilai' => $request->nilai,
@@ -686,6 +784,16 @@ class GuruController extends Controller
         }
 
         $sub->update($updateData);
+
+        $sub->loadMissing(['siswa', 'tugas']);
+        $this->notifyStudentGrade(
+            $sub->siswa,
+            'Nilai dan Feedback Tugas Tersedia',
+            'Tugas ' . $sub->tugas?->judul . ' sudah dinilai dan feedback dapat dilihat.',
+            route('siswa.evaluasi'),
+            'task.final-graded:' . $sub->id . ':' . $sub->updated_at->timestamp,
+            $notifications
+        );
 
         return redirect()->route('guru.penilaian.index')->with('success', 'Penilaian final dan umpan balik tugas siswa berhasil disimpan!');
     }
