@@ -89,10 +89,7 @@
         
         <!-- HEADER TOP BAR -->
         <header class="px-8 py-4 flex items-center justify-end gap-5">
-            <button class="relative p-2 bg-white rounded-full shadow-xs hover:bg-slate-50 transition border border-slate-100">
-                <span class="text-base">🔔</span>
-                <span class="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">3</span>
-            </button>
+            <x-notification-bell />
 
             <div class="flex items-center gap-3 bg-white px-3.5 py-1.5 rounded-full shadow-xs border border-slate-100">
                 <div class="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-xs">👤</div>

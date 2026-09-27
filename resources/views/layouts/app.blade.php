@@ -156,9 +156,7 @@
                     </div>
                     <div class="flex items-center space-x-4">
                         <!-- Lonceng Notifikasi -->
-                        <button class="w-10 h-10 rounded-full bg-white flex items-center justify-center text-slate-500 shadow-sm hover:bg-slate-50 transition border border-slate-100">
-                            🔔
-                        </button>
+                        <x-notification-bell />
 
                         <!-- User Profile Badge -->
                         <div class="flex items-center gap-3 bg-white px-4 py-1.5 rounded-full shadow-sm border border-slate-100">

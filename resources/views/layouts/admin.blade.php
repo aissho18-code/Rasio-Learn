@@ -29,10 +29,7 @@
         <div class="min-w-0 flex-1">
             <!-- Header Atas -->
             <header class="flex items-center justify-end gap-5 px-8 py-5">
-                <a href="{{ route('notifications.index') }}" 
-                   class="flex h-11 w-11 items-center justify-center rounded-full bg-white text-slate-700 shadow-xs border border-slate-100 hover:bg-slate-50 transition">
-                    🔔
-                </a>
+                <x-notification-bell />
 
                 <a href="{{ route('profile.show') }}" 
                    class="flex items-center gap-3 rounded-full border border-slate-100 bg-white px-3 py-1.5 shadow-xs transition hover:border-blue-300">
