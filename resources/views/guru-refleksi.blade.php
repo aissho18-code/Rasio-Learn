@@ -84,6 +84,8 @@
     <!-- MAIN CONTENT AREA -->
     <main class="flex-1 flex flex-col h-full overflow-y-auto">
         <header class="px-8 py-4 flex items-center justify-end gap-5">
+            <x-notification-bell />
+
             <div class="flex items-center gap-3 bg-white px-3.5 py-1.5 rounded-full shadow-xs border border-slate-100">
                 <div class="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-xs">👤</div>
                 <div class="text-left leading-tight pr-1">

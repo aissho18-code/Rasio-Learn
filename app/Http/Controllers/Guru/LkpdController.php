@@ -29,7 +29,10 @@ class LkpdController extends Controller
     {
         $kelasGuru = Kelas::query()->orderBy('nama_kelas')->get();
 
-        return view('guru-lkpd-create', compact('kelasGuru'));
+        return view('guru-lkpd-create', [
+            'kelasGuru' => $kelasGuru,
+            'kelasList' => $kelasGuru,
+        ]);
     }
 
     public function store(Request $request)
@@ -91,7 +94,11 @@ class LkpdController extends Controller
         $kelasGuru = Kelas::query()->orderBy('nama_kelas')->get();
         $lkpd->load('questions');
 
-        return view('guru-lkpd-edit', compact('lkpd', 'kelasGuru'));
+        return view('guru-lkpd-edit', [
+            'lkpd' => $lkpd,
+            'kelasGuru' => $kelasGuru,
+            'kelasList' => $kelasGuru,
+        ]);
     }
 
     public function update(Request $request, Lkpd $lkpd)
