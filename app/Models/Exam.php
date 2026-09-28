@@ -35,7 +35,7 @@ class Exam extends Model
 
     public function logs()
     {
-        return $this->hasMany(ProctorLog::class, 'exam_id');
+        return $this->hasMany(ProctoringLog::class, 'exam_id');
     }
 
     public function submissions()

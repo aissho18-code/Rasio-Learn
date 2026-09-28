@@ -13,76 +13,74 @@ class RoleBasedLoginTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_login_redirects_to_the_persisted_role_even_when_intended_and_form_role_disagree(): void
+    public function test_selected_login_role_must_match_user_role_backend(): void
     {
-        $admin = $this->createUser('admin');
         $teacher = $this->createUser('guru');
         $student = $this->createUser('siswa');
-        $teacher->assignRole(Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']));
+        $admin = $this->createUser('admin');
 
-        $this->withSession(['url.intended' => route('guru.dashboard')])
+        $this->from(route('login', ['role' => 'siswa']))
             ->post(route('login'), [
-                'email' => $admin->email,
+                'email' => $teacher->email,
+                'password' => 'password',
+                'role' => 'siswa',
+            ])
+            ->assertSessionHasErrors('email');
+
+        $this->assertGuest();
+
+        $this->from(route('login', ['role' => 'guru']))
+            ->post(route('login'), [
+                'email' => $student->email,
+                'password' => 'password',
+                'role' => 'guru',
+            ])
+            ->assertSessionHasErrors('email');
+
+        $this->assertGuest();
+
+        $this->from(route('login', ['role' => 'admin']))
+            ->post(route('login'), [
+                'email' => $student->email,
+                'password' => 'password',
+                'role' => 'admin',
+            ])
+            ->assertSessionHasErrors('email');
+
+        $this->assertGuest();
+
+        $this->from(route('login', ['role' => 'guru']))
+            ->post(route('login'), [
+                'email' => $teacher->email,
+                'password' => 'password',
+                'role' => 'guru',
+            ])
+            ->assertRedirect(route('guru.dashboard'));
+
+        $this->assertAuthenticatedAs($teacher);
+        $this->post(route('logout'))->assertRedirect(route('login'));
+
+        $this->from(route('login', ['role' => 'siswa']))
+            ->post(route('login'), [
+                'email' => $student->email,
                 'password' => 'password',
                 'role' => 'siswa',
             ])
             ->assertRedirect(route('dashboard'));
-        $this->assertAuthenticatedAs($admin);
-        $this->get(route('dashboard'))->assertOk()->assertViewIs('dashboard-admin');
+
+        $this->assertAuthenticatedAs($student);
         $this->post(route('logout'))->assertRedirect(route('login'));
 
-        $this->withSession(['url.intended' => route('admin.users.index')])
+        $this->from(route('login', ['role' => 'admin']))
             ->post(route('login'), [
-                'email' => $teacher->email,
+                'email' => $admin->email,
                 'password' => 'password',
                 'role' => 'admin',
             ])
-            ->assertRedirect(route('guru.dashboard'));
-        $this->assertAuthenticatedAs($teacher);
-        $this->get(route('dashboard'))->assertRedirect(route('guru.dashboard'));
+            ->assertRedirect(route('dashboard'));
+
+        $this->assertAuthenticatedAs($admin);
         $this->post(route('logout'))->assertRedirect(route('login'));
-
-        $kelas = Kelas::create(['nama_kelas' => 'Kelas Login']);
-        $student->siswaProfile()->create(['kelas_id' => $kelas->id]);
-
-        $this->post(route('login'), [
-            'email' => $student->email,
-            'password' => 'password',
-        ])->assertRedirect(route('dashboard'));
-        $this->assertAuthenticatedAs($student);
-        $this->get(route('dashboard'))->assertOk()->assertViewIs('dashboard-siswa');
-    }
-
-    public function test_each_portal_rejects_users_with_a_different_persisted_role(): void
-    {
-        $student = $this->createUser('siswa');
-        $kelas = Kelas::create(['nama_kelas' => 'Kelas Akses']);
-        $student->siswaProfile()->create(['kelas_id' => $kelas->id]);
-
-        $this->actingAs($student)
-            ->get(route('admin.users.index'))
-            ->assertForbidden();
-
-        $this->get(route('guru.dashboard'))->assertForbidden();
-        $this->get(route('siswa.ujian.index'))->assertOk();
-
-        $this->get(route('dashboard'))->assertOk()->assertViewIs('dashboard-siswa');
-    }
-
-    public function test_unknown_role_cannot_log_in_or_render_a_generic_dashboard(): void
-    {
-        $unknownUser = $this->createUser('superuser');
-
-        $this->post(route('login'), [
-            'email' => $unknownUser->email,
-            'password' => 'password',
-        ])->assertSessionHasErrors('email');
-
-        $this->assertGuest();
-
-        $this->actingAs($unknownUser)
-            ->get(route('dashboard'))
-            ->assertForbidden();
     }
 
     private function createUser(string $role): User

@@ -11,9 +11,11 @@ use App\Models\User;
 
 class AuthenticatedSessionController extends Controller
 {
-    public function create()
+    public function create(Request $request)
     {
-        return view('auth.login');
+        return view('auth.login', [
+            'loginRole' => $request->query('role', 'siswa'),
+        ]);
     }
 
     public function store(Request $request)
@@ -22,6 +24,7 @@ class AuthenticatedSessionController extends Controller
         $credentials = $request->validate([
             'email' => ['required', 'email'],
             'password' => ['required', 'string'],
+            'role' => ['required', 'in:admin,guru,siswa'],
         ]);
 
         $user = User::where('email', $credentials['email'])->first();
@@ -48,11 +51,25 @@ class AuthenticatedSessionController extends Controller
         }
 
         $actualRole = $user->role;
+        $selectedRole = $credentials['role'] ?? null;
+
         if (! in_array($actualRole, ['admin', 'guru', 'siswa'], true)) {
             $request->session()->forget('url.intended');
 
             throw ValidationException::withMessages([
                 'email' => 'Role akun tidak valid. Hubungi administrator untuk memperbaiki akun Anda.',
+            ]);
+        }
+
+        if ($selectedRole && $selectedRole !== $actualRole) {
+            $request->session()->forget('url.intended');
+
+            throw ValidationException::withMessages([
+                'email' => sprintf(
+                    'Akun ini terdaftar sebagai %s. Silakan pilih role %s untuk melanjutkan.',
+                    ucfirst($actualRole),
+                    ucfirst($actualRole)
+                ),
             ]);
         }
 

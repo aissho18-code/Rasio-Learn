@@ -70,6 +70,17 @@ class AdminTeacherConsistencyTest extends TestCase
         ]);
     }
 
+    public function test_admin_exam_create_page_renders_with_correct_routes(): void
+    {
+        $admin = $this->createUser('admin');
+
+        $this->actingAs($admin)
+            ->get(route('admin.exams.create'))
+            ->assertOk()
+            ->assertSee('Buat Ujian Baru (Admin)')
+            ->assertSee(route('admin.exams.index'));
+    }
+
     private function createUser(string $role): User
     {
         return User::create([

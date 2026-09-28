@@ -42,9 +42,15 @@ class GuruMateriFormTest extends TestCase
             'role' => 'guru',
         ]);
 
+        Kelas::create([
+            'nama_kelas' => 'Kelas VII',
+            'wali_kelas_id' => $user->id,
+        ]);
+
         $response = $this->actingAs($user)->post(route('guru.materi.store'), [
             'judul' => 'Materi Draft Baru',
             'pekan' => 'Pertemuan 1',
+            'kelas_id' => Kelas::where('wali_kelas_id', $user->id)->first()->id,
             'konten' => 'Isi draft materi',
             'status' => 'draft',
         ]);
@@ -67,7 +73,10 @@ class GuruMateriFormTest extends TestCase
         ]);
 
         $mapel = MataPelajaran::create(['nama_mapel' => 'Matematika']);
-        $kelas = Kelas::create(['nama_kelas' => 'Kelas VII']);
+        $kelas = Kelas::create([
+            'nama_kelas' => 'Kelas VII',
+            'wali_kelas_id' => $user->id,
+        ]);
 
         $materi = Materi::create([
             'judul' => 'Materi Lama',
