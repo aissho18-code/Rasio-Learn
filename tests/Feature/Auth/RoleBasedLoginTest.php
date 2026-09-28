@@ -13,18 +13,30 @@ class RoleBasedLoginTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_login_redirects_to_the_persisted_role_even_when_intended_and_form_role_disagree(): void
+    public function test_selected_login_role_must_match_user_role_backend(): void
     {
         $admin = $this->createUser('admin');
         $teacher = $this->createUser('guru');
         $student = $this->createUser('siswa');
-        $teacher->assignRole(Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']));
+        $studentClass = Kelas::create(['nama_kelas' => 'Kelas Login']);
+        $student->siswaProfile()->create(['kelas_id' => $studentClass->id]);
+        Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
+        $teacher->assignRole('admin');
+
+        $this->from(route('login', ['role' => 'siswa']))
+            ->post(route('login'), [
+                'email' => $teacher->email,
+                'password' => 'password',
+                'role' => 'siswa',
+            ])
+            ->assertSessionHasErrors('email');
+        $this->assertGuest();
 
         $this->withSession(['url.intended' => route('guru.dashboard')])
             ->post(route('login'), [
                 'email' => $admin->email,
                 'password' => 'password',
-                'role' => 'siswa',
+                'role' => 'admin',
             ])
             ->assertRedirect(route('admin.dashboard'));
         $this->assertAuthenticatedAs($admin);
@@ -36,13 +48,11 @@ class RoleBasedLoginTest extends TestCase
         $this->post(route('logout'))->assertRedirect(route('login'));
         $this->assertNull($admin->fresh()->last_activity_at);
 
-        $this->withSession(['url.intended' => route('admin.users.index')])
-            ->post(route('login'), [
-                'email' => $teacher->email,
-                'password' => 'password',
-                'role' => 'admin',
-            ])
-            ->assertRedirect(route('guru.dashboard'));
+        $this->post(route('login'), [
+            'email' => $teacher->email,
+            'password' => 'password',
+            'role' => 'guru',
+        ])->assertRedirect(route('guru.dashboard'));
         $this->assertAuthenticatedAs($teacher);
         $this->get(route('dashboard'))->assertRedirect(route('guru.dashboard'));
         $this->get(route('guru.dashboard'))->assertOk()->assertViewIs('dashboard-guru');
@@ -51,12 +61,10 @@ class RoleBasedLoginTest extends TestCase
         $this->post(route('logout'))->assertRedirect(route('login'));
         $this->assertNull($teacher->fresh()->last_activity_at);
 
-        $kelas = Kelas::create(['nama_kelas' => 'Kelas Login']);
-        $student->siswaProfile()->create(['kelas_id' => $kelas->id]);
-
         $this->post(route('login'), [
             'email' => $student->email,
             'password' => 'password',
+            'role' => 'siswa',
         ])->assertRedirect(route('siswa.dashboard'));
         $this->assertAuthenticatedAs($student);
         $this->get(route('dashboard'))->assertRedirect(route('siswa.dashboard'));
@@ -69,6 +77,7 @@ class RoleBasedLoginTest extends TestCase
         $this->post(route('login'), [
             'email' => $admin->email,
             'password' => 'password',
+            'role' => 'admin',
         ])->assertRedirect(route('admin.dashboard'));
         $this->assertAuthenticatedAs($admin);
         $this->get(route('admin.dashboard'))->assertOk()->assertViewIs('dashboard-admin');
@@ -86,7 +95,6 @@ class RoleBasedLoginTest extends TestCase
 
         $this->get(route('guru.dashboard'))->assertForbidden();
         $this->get(route('siswa.ujian.index'))->assertOk();
-
         $this->get(route('siswa.dashboard'))->assertOk()->assertViewIs('dashboard-siswa');
         $this->get(route('dashboard'))->assertRedirect(route('siswa.dashboard'));
     }
@@ -98,6 +106,7 @@ class RoleBasedLoginTest extends TestCase
         $this->post(route('login'), [
             'email' => $unknownUser->email,
             'password' => 'password',
+            'role' => 'admin',
         ])->assertSessionHasErrors('email');
 
         $this->assertGuest();

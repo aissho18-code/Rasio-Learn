@@ -10,9 +10,11 @@ use App\Models\User;
 
 class AuthenticatedSessionController extends Controller
 {
-    public function create()
+    public function create(Request $request)
     {
-        return view('auth.login');
+        return view('auth.login', [
+            'loginRole' => $request->query('role', 'siswa'),
+        ]);
     }
 
     public function store(Request $request)
@@ -21,6 +23,7 @@ class AuthenticatedSessionController extends Controller
         $credentials = $request->validate([
             'email' => ['required', 'email'],
             'password' => ['required', 'string'],
+            'role' => ['required', 'in:admin,guru,siswa'],
         ]);
 
         $user = User::where('email', $credentials['email'])->first();
@@ -40,7 +43,10 @@ class AuthenticatedSessionController extends Controller
         }
 
         // 4. Validasi Password
-        if (! Auth::guard('web')->attempt($credentials, $request->boolean('remember'))) {
+        if (! Auth::guard('web')->attempt([
+            'email' => $credentials['email'],
+            'password' => $credentials['password'],
+        ], $request->boolean('remember'))) {
             throw ValidationException::withMessages([
                 'email' => 'Email atau password tidak sesuai.',
             ]);
@@ -59,6 +65,20 @@ class AuthenticatedSessionController extends Controller
 
             throw ValidationException::withMessages([
                 'email' => 'Role akun tidak valid. Hubungi administrator untuk memperbaiki akun Anda.',
+            ]);
+        }
+
+        if ($credentials['role'] !== $authenticatedUser->role) {
+            Auth::guard('web')->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            throw ValidationException::withMessages([
+                'email' => sprintf(
+                    'Akun ini terdaftar sebagai %s. Silakan pilih role %s untuk melanjutkan.',
+                    ucfirst($authenticatedUser->role),
+                    ucfirst($authenticatedUser->role)
+                ),
             ]);
         }
 

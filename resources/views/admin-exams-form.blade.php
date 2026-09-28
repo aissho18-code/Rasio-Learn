@@ -10,7 +10,7 @@
 </head>
 <body class="bg-[#F0F5FE] text-slate-800 min-h-screen p-6">
     <div class="max-w-2xl mx-auto space-y-4">
-        <a href="{{ route('admin.ujian.index') }}" class="inline-block text-xs font-bold text-blue-600 hover:underline">
+        <a href="{{ route('admin.exams.index') }}" class="inline-block text-xs font-bold text-blue-600 hover:underline">
             ← Kembali ke Daftar Ujian
         </a>
 
@@ -25,7 +25,7 @@
                 </div>
             @endif
 
-            <form method="POST" action="{{ $exam->exists ? route('admin.ujian.update', $exam->id) : route('admin.ujian.store') }}" class="space-y-4">
+            <form method="POST" action="{{ $exam->exists ? route('admin.exams.update', $exam->id) : route('admin.exams.store') }}" class="space-y-4">
                 @csrf
                 @if ($exam->exists)
                     @method('PUT')
@@ -73,7 +73,7 @@
                 </div>
 
                 <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
-                    <a href="{{ route('admin.ujian.index') }}" class="px-4 py-2.5 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded-xl transition">Batal</a>
+                    <a href="{{ route('admin.exams.index') }}" class="px-4 py-2.5 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded-xl transition">Batal</a>
                     <button type="submit" class="px-5 py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-xs transition cursor-pointer">
                         {{ $exam->exists ? 'Simpan Perubahan' : 'Simpan Ujian' }}
                     </button>

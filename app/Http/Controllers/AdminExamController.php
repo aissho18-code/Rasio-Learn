@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Models\Exam;
 use App\Models\Kelas;
-use App\Models\ProctorLog;
+use App\Models\ProctoringLog;
 use App\Notifications\LearningNotification;
 use App\Support\LearningNotificationService;
 use Illuminate\Http\Request;
@@ -139,7 +139,7 @@ class AdminExamController extends Controller
     // 8. Ekspor Log
     public function exportLogs()
     {
-        $logs = ProctorLog::with('exam')->latest()->get();
+        $logs = ProctoringLog::with('exam')->latest()->get();
 
         $csv = "Waktu,Siswa,Ujian,Tipe,Detail,Severity\n";
 
