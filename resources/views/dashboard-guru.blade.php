@@ -87,6 +87,51 @@
                 </div>
             </div>
 
+            <section class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-4" aria-label="Status siswa per kelas">
+                <div class="flex items-center justify-between gap-3">
+                    <div>
+                        <h2 class="text-sm font-bold text-slate-800">Status Siswa</h2>
+                        <p class="text-xs text-slate-400">Status siswa yang terdaftar pada kelas yang Anda ampu.</p>
+                    </div>
+                    <div class="text-xs font-semibold text-slate-500">
+                        <span class="text-green-700">● {{ $totalAktifSiswa }} Aktif</span>
+                        <span class="mx-1">|</span>
+                        <span>○ {{ $totalSiswa - $totalAktifSiswa }} Tidak aktif</span>
+                    </div>
+                </div>
+
+                <div class="grid gap-4 md:grid-cols-2">
+                    @forelse($kelasMonitoring as $kelas)
+                        @php($kelasAktif = $kelas->siswa->filter(fn ($siswa) => $siswa->isOnline())->count())
+                        <div class="rounded-xl border border-slate-200 overflow-hidden" data-class-monitoring="{{ $kelas->id }}">
+                            <div class="bg-slate-50 px-4 py-3 flex items-center justify-between gap-3">
+                                <h3 class="text-xs font-bold text-slate-800">{{ $kelas->nama_kelas }}</h3>
+                                <div class="text-[10px] text-slate-500" data-class-summary>
+                                    {{ $kelas->siswa->count() }} Siswa | <span class="text-green-700">● {{ $kelasAktif }} Aktif</span> | ○ {{ $kelas->siswa->count() - $kelasAktif }} Tidak aktif
+                                </div>
+                            </div>
+                            <div class="divide-y divide-slate-100">
+                                @forelse($kelas->siswa as $siswa)
+                                    <div class="px-4 py-3 flex items-center justify-between gap-3" data-student-id="{{ $siswa->id }}">
+                                        <span class="text-xs font-semibold text-slate-700">{{ $siswa->name }}</span>
+                                        <div class="text-right">
+                                            <span data-student-status class="block text-[11px] font-bold {{ $siswa->isOnline() ? 'text-green-700' : 'text-slate-500' }}">{{ $siswa->isOnline() ? '● Aktif' : '○ Tidak aktif' }}</span>
+                                            <span data-student-last-active class="block text-[10px] text-slate-400">{{ $siswa->lastActiveLabel() }}</span>
+                                        </div>
+                                    </div>
+                                @empty
+                                    <div class="px-4 py-5 text-center text-xs text-slate-400">Belum ada siswa terdaftar di kelas ini.</div>
+                                @endforelse
+                            </div>
+                        </div>
+                    @empty
+                        <div class="md:col-span-2 rounded-xl border border-dashed border-slate-200 p-6 text-center text-xs text-slate-400">
+                            {{ $selectedKelasId ? 'Tidak ada siswa terdaftar di kelas ini.' : 'Anda belum memiliki kelas yang diampu.' }}
+                        </div>
+                    @endforelse
+                </div>
+            </section>
+
             <!-- BAGIAN PENGUMUMAN KELAS -->
             <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-4">
                 <div class="flex items-center justify-between">
@@ -184,6 +229,40 @@
     </div>
 
     <script>
+        const guruMonitoringUrl = @json(route('guru.monitoring.status'));
+        const selectedMonitoringClass = @json($selectedKelasId);
+
+        async function refreshGuruMonitoring() {
+            try {
+                const url = new URL(guruMonitoringUrl, window.location.origin);
+                if (selectedMonitoringClass) url.searchParams.set('kelas_id', selectedMonitoringClass);
+                const response = await fetch(url, { headers: { Accept: 'application/json' } });
+                if (!response.ok) return;
+                const data = await response.json();
+
+                data.classes.forEach((kelas) => {
+                    const panel = document.querySelector(`[data-class-monitoring="${kelas.id}"]`);
+                    if (!panel) return;
+                    const summary = panel.querySelector('[data-class-summary]');
+                    summary.innerHTML = `${kelas.total} Siswa | <span class="text-green-700">● ${kelas.active} Aktif</span> | ○ ${kelas.total - kelas.active} Tidak aktif`;
+
+                    kelas.students.forEach((student) => {
+                        const row = panel.querySelector(`[data-student-id="${student.id}"]`);
+                        if (!row) return;
+                        const status = row.querySelector('[data-student-status]');
+                        status.textContent = student.is_active ? '● Aktif' : '○ Tidak aktif';
+                        status.className = `block text-[11px] font-bold ${student.is_active ? 'text-green-700' : 'text-slate-500'}`;
+                        row.querySelector('[data-student-last-active]').textContent = student.last_active;
+                    });
+                });
+            } catch (error) {
+                console.error('Gagal memperbarui status siswa.', error);
+            }
+        }
+
+        refreshGuruMonitoring();
+        setInterval(refreshGuruMonitoring, 30000);
+
         function openAnnouncementModal() {
             document.getElementById('announcement-modal').classList.remove('hidden');
         }

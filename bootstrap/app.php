@@ -14,6 +14,8 @@ return Application::configure(basePath: dirname(__DIR__))
         __DIR__.'/../app/Console/Commands',
     ])
     ->withMiddleware(function (Middleware $middleware) {
+        $middleware->appendToGroup('web', \App\Http\Middleware\TrackUserActivity::class);
+
         // 1. Percayai proxy Cloudflare Tunnel (HTTPS) untuk mencegah error 419 Page Expired
         $middleware->trustProxies(at: '*');
 

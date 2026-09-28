@@ -191,6 +191,18 @@
                                 <span class="text-slate-500">Dikirim {{ $submission->submitted_at?->diffForHumans() }}</span>
                             </summary>
                             <p class="mt-3 whitespace-pre-wrap rounded-lg bg-slate-50 p-4 text-xs leading-5 text-slate-700">{{ $submission->response }}</p>
+                            <form method="POST" action="{{ route('guru.ujian.grade', $submission) }}" class="mt-4 grid gap-3 sm:grid-cols-[120px_1fr_auto] sm:items-end">
+                                @csrf
+                                <div>
+                                    <label for="score-{{ $submission->id }}" class="mb-1 block text-[10px] font-bold text-slate-600">Nilai Final</label>
+                                    <input id="score-{{ $submission->id }}" name="score" type="number" min="0" max="100" required value="{{ old('score', $submission->score) }}" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs">
+                                </div>
+                                <div>
+                                    <label for="feedback-{{ $submission->id }}" class="mb-1 block text-[10px] font-bold text-slate-600">Feedback Guru</label>
+                                    <textarea id="feedback-{{ $submission->id }}" name="feedback" rows="2" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs">{{ old('feedback', $submission->feedback) }}</textarea>
+                                </div>
+                                <button type="submit" class="rounded-lg bg-blue-700 px-4 py-2 text-xs font-bold text-white hover:bg-blue-800">Simpan Nilai</button>
+                            </form>
                         </details>
                     @empty
                         <p class="px-6 py-8 text-center text-xs text-slate-400">Belum ada pengumpulan ujian.</p>

@@ -25,14 +25,45 @@ class User extends Authenticatable
         'remember_token',
     ];
 
+    protected $casts = [
+        'last_activity_at' => 'datetime',
+    ];
+
+    public function isOnline(): bool
+    {
+        return $this->last_activity_at !== null
+            && $this->last_activity_at->greaterThanOrEqualTo(now()->subMinutes(5));
+    }
+
+    public function dashboardRouteName(): ?string
+    {
+        return match ($this->role) {
+            'admin' => 'admin.dashboard',
+            'guru' => 'guru.dashboard',
+            'siswa' => 'siswa.dashboard',
+            default => null,
+        };
+    }
+
+    public function monitoringRole(): ?string
+    {
+        return in_array($this->role, ['guru', 'siswa'], true) ? $this->role : null;
+    }
+
+    public function lastActiveLabel(): string
+    {
+        if ($this->isOnline()) {
+            return 'Sekarang';
+        }
+
+        return $this->last_activity_at?->locale('id')->diffForHumans() ?? 'Belum pernah aktif';
+    }
+
     public function scopeForRoles(Builder $query, string|array $roles): Builder
     {
         $roles = (array) $roles;
 
-        return $query->where(function (Builder $query) use ($roles) {
-            $query->whereIn('role', $roles)
-                ->orWhereHas('roles', fn (Builder $roleQuery) => $roleQuery->whereIn('name', $roles));
-        });
+        return $query->whereIn('role', $roles);
     }
 
     public function siswaProfile()

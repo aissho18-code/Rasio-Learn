@@ -62,7 +62,7 @@
                                 // Cek status lock real-time dari tabel Materi & MateriProgress
                                 $prog = $progresses[$materi->id] ?? null;
                                 $isLocked = (isset($materi->is_locked) && $materi->is_locked) || 
-                                           (isset($materi->status) && $materi->status === 'locked') || 
+                                           in_array($materi->status, ['terkunci', 'locked'], true) ||
                                            ($prog && $prog->status === 'locked');
                             @endphp
 

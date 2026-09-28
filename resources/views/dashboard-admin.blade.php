@@ -39,7 +39,7 @@
             <!-- Navigasi Menu -->
             <nav class="space-y-1.5">
                 <!-- Dashboard -->
-                <a href="{{ route('dashboard') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold transition-all duration-200 {{ request()->routeIs('dashboard') ? 'bg-white text-slate-900 shadow-sm font-bold' : 'text-slate-400 hover:bg-slate-800/60 hover:text-white' }}">
+                <a href="{{ route('admin.dashboard') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold transition-all duration-200 {{ request()->routeIs('admin.dashboard') ? 'bg-white text-slate-900 shadow-sm font-bold' : 'text-slate-400 hover:bg-slate-800/60 hover:text-white' }}">
                     <span class="text-base">🏠</span>
                     <span>Dashboard</span>
                 </a>
@@ -103,14 +103,14 @@
                 <div class="text-left leading-tight pr-1">
                     <div class="text-xs font-bold text-slate-800">{{ Auth::user()->name }}</div>
                     <div class="text-[10px] text-slate-400 font-medium capitalize">
-                        @if(Auth::user()->role === 'siswa' || Auth::user()->hasRole('siswa'))
+                        @if(Auth::user()->role === 'siswa')
                             Siswa 
                             @if(isset($currentUserKelasName) && $currentUserKelasName)
                                 • Kelas {{ $currentUserKelasName }}
                             @else
                                 • <span class="text-red-500 font-semibold">Belum masuk kelas</span>
                             @endif
-                        @elseif(Auth::user()->role === 'guru' || Auth::user()->hasRole('guru'))
+                        @elseif(Auth::user()->role === 'guru')
                             Guru
                         @else
                             Admin
@@ -134,6 +134,14 @@
                     {{ session('success') }}
                 </div>
             @endif
+
+            <section class="grid grid-cols-2 lg:grid-cols-5 gap-3" aria-label="Ringkasan pengguna aktif">
+                <div class="bg-white rounded-xl border border-gray-200 p-4"><div class="text-[11px] text-gray-500">Total Guru</div><div class="text-xl font-extrabold" id="count-guru">{{ $guruUsers->count() }}</div></div>
+                <div class="bg-white rounded-xl border border-gray-200 p-4"><div class="text-[11px] text-gray-500">Guru Aktif</div><div class="text-xl font-extrabold text-green-700" id="count-guru-active">{{ $totalGuruAktif }}</div></div>
+                <div class="bg-white rounded-xl border border-gray-200 p-4"><div class="text-[11px] text-gray-500">Total Siswa</div><div class="text-xl font-extrabold" id="count-siswa">{{ $siswaUsers->count() }}</div></div>
+                <div class="bg-white rounded-xl border border-gray-200 p-4"><div class="text-[11px] text-gray-500">Siswa Aktif</div><div class="text-xl font-extrabold text-green-700" id="count-siswa-active">{{ $totalSiswaAktif }}</div></div>
+                <div class="bg-white rounded-xl border border-gray-200 p-4"><div class="text-[11px] text-gray-500">Total Pengguna Aktif</div><div class="text-xl font-extrabold text-green-700" id="count-total-active">{{ $totalPenggunaAktif }}</div></div>
+            </section>
 
             <!-- Form Tambah Akun Baru -->
             <div class="bg-white rounded-2xl border border-gray-200/80 shadow-sm p-6 space-y-4">
@@ -197,12 +205,14 @@
                                 <th class="py-3.5 px-6">Nama</th>
                                 <th class="py-3.5 px-6">Email</th>
                                 <th class="py-3.5 px-6">Peran</th>
+                                <th class="py-3.5 px-6">Kelas</th>
+                                <th class="py-3.5 px-6">Status / Terakhir Aktif</th>
                                 <th class="py-3.5 px-6 text-right">Aksi</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100 text-gray-700">
                             @forelse($users ?? [] as $u)
-                                <tr class="hover:bg-gray-50/50 transition">
+                                <tr class="hover:bg-gray-50/50 transition" data-user-id="{{ $u->id }}">
                                     <td class="py-4 px-6 font-bold text-gray-800 flex items-center space-x-2">
                                         <span class="text-gray-400">👤</span>
                                         <span>{{ $u->name }}</span>
@@ -211,9 +221,15 @@
                                         {{ $u->email }}
                                     </td>
                                     <td class="py-4 px-6">
-                                        <span class="px-3 py-1 text-[10px] font-extrabold uppercase rounded-full {{ $u->role === 'guru' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700' }}">
-                                            {{ $u->role }}
+                                        @php($userRole = $u->monitoringRole())
+                                        <span class="px-3 py-1 text-[10px] font-extrabold uppercase rounded-full {{ $userRole === 'guru' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700' }}">
+                                            {{ $userRole }}
                                         </span>
+                                    </td>
+                                    <td class="py-4 px-6 text-gray-600">{{ $userRole === 'siswa' ? ($u->siswaProfile?->kelas?->nama_kelas ?? '-') : '-' }}</td>
+                                    <td class="py-4 px-6">
+                                        <span data-user-status class="font-bold {{ $u->isOnline() ? 'text-green-700' : 'text-gray-500' }}">{{ $u->isOnline() ? '● Aktif' : '○ Tidak aktif' }}</span>
+                                        <span data-user-last-active class="block text-[10px] text-gray-400 mt-1">{{ $u->lastActiveLabel() }}</span>
                                     </td>
                                     <td class="py-4 px-6 text-right">
                                         <form action="{{ route('admin.users.destroy', $u->id) }}" method="POST" onsubmit="return confirm('Yakin ingin menghapus akun ini?');" class="inline-block">
@@ -227,7 +243,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="4" class="py-8 text-center text-gray-400 italic">Belum ada pengguna terdaftar.</td>
+                                    <td colspan="6" class="py-8 text-center text-gray-400 italic">Belum ada pengguna terdaftar.</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -239,4 +255,34 @@
     </main>
 
 </body>
+<script>
+    const adminMonitoringUrl = @json(route('admin.monitoring.status'));
+
+    async function refreshAdminMonitoring() {
+        try {
+            const response = await fetch(adminMonitoringUrl, { headers: { Accept: 'application/json' } });
+            if (!response.ok) return;
+            const data = await response.json();
+            document.getElementById('count-guru').textContent = data.counts.guru;
+            document.getElementById('count-guru-active').textContent = data.counts.guru_active;
+            document.getElementById('count-siswa').textContent = data.counts.siswa;
+            document.getElementById('count-siswa-active').textContent = data.counts.siswa_active;
+            document.getElementById('count-total-active').textContent = data.counts.total_active;
+
+            data.users.forEach((user) => {
+                const row = document.querySelector(`[data-user-id="${user.id}"]`);
+                if (!row) return;
+                const status = row.querySelector('[data-user-status]');
+                status.textContent = user.is_active ? '● Aktif' : '○ Tidak aktif';
+                status.className = `font-bold ${user.is_active ? 'text-green-700' : 'text-gray-500'}`;
+                row.querySelector('[data-user-last-active]').textContent = user.last_active;
+            });
+        } catch (error) {
+            console.error('Gagal memperbarui status pengguna.', error);
+        }
+    }
+
+    refreshAdminMonitoring();
+    setInterval(refreshAdminMonitoring, 30000);
+</script>
 </html>

@@ -19,6 +19,7 @@ use App\Http\Controllers\AdminExamController;
 use App\Http\Controllers\SiswaExamController;
 use App\Http\Controllers\Guru\LkpdController as GuruLkpdController;
 use App\Http\Controllers\Siswa\LkpdController as SiswaLkpdController;
+use App\Http\Controllers\ActivityMonitoringController;
 
 /*
 |--------------------------------------------------------------------------
@@ -30,33 +31,13 @@ Route::get('/', function () {
     return redirect()->route('login');
 });
 
-// Dashboard utama mengarahkan berdasarkan role canonical dari akun aktif.
-Route::get('/dashboard', function () {
-    $user = auth()->user();
+// Dashboard utama hanya menjadi pintu masuk ke portal berdasarkan user terautentikasi.
+Route::get('/dashboard', function (\Illuminate\Http\Request $request) {
+    $dashboardRoute = $request->user()->dashboardRouteName();
 
-    if ($user->role === 'admin') {
-        $users = \App\Models\User::forRoles(['guru', 'siswa'])->get();
-        return view('dashboard-admin', compact('users'));
-    }
+    abort_unless($dashboardRoute, 403, 'Role akun tidak valid. Hubungi administrator.');
 
-    if ($user->role === 'guru') {
-        return redirect()->route('guru.dashboard');
-    }
-    
-    if ($user->role === 'siswa') {
-        $kelasId = optional($user->siswaProfile)->kelas_id;
-        if (empty($kelasId)) {
-            return view('dashboard-siswa-no-class');
-        }
-
-        $progressList = \App\Models\MateriProgress::with('materi.mapel')
-            ->where('siswa_id', $user->id)
-            ->get();
-            
-        return view('dashboard-siswa', compact('progressList'));
-    }
-
-    abort(403, 'Role akun tidak valid. Hubungi administrator.');
+    return redirect()->route($dashboardRoute);
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 /*
@@ -94,6 +75,7 @@ Route::middleware(['auth'])->group(function () {
     // 🎓 RUTE SISWA
     // =========================================================================
     Route::prefix('siswa')->name('siswa.')->middleware('role:siswa')->group(function () {
+        Route::get('/dashboard', [SiswaController::class, 'dashboard'])->middleware('verified')->name('dashboard');
         
         // Rute yang Dilindungi 'student.has_class'
         Route::middleware(['student.has_class'])->group(function () {
@@ -109,6 +91,7 @@ Route::middleware(['auth'])->group(function () {
 
             // Ujian Siswa (Terintegrasi SiswaExamController)
             Route::get('/ujian', [SiswaExamController::class, 'index'])->name('ujian.index');
+            Route::get('/ujian/result/{submission}', [SiswaExamController::class, 'result'])->name('ujian.result');
             Route::get('/ujian/{id}', [SiswaExamController::class, 'show'])->whereNumber('id')->name('ujian.show');
             Route::post('/ujian/{id}/submit', [SiswaExamController::class, 'submit'])->whereNumber('id')->name('ujian.submit');
 
@@ -150,6 +133,7 @@ Route::middleware(['auth'])->group(function () {
     // =========================================================================
     Route::prefix('guru')->name('guru.')->middleware('role:guru')->group(function () {
         Route::get('/dashboard', [GuruController::class, 'dashboard'])->name('dashboard');
+        Route::get('/monitoring/status', [ActivityMonitoringController::class, 'guruStatus'])->name('monitoring.status');
 
         // Pengumuman Guru
         Route::get('/pengumuman', [GuruPengumumanController::class, 'index'])->name('pengumuman.index');
@@ -173,6 +157,7 @@ Route::middleware(['auth'])->group(function () {
 
         // Ujian Guru (Terintegrasi GuruExamController)
         Route::get('/ujian', [GuruExamController::class, 'index'])->name('ujian.index');
+        Route::post('/ujian/submissions/{submission}/grade', [GuruExamController::class, 'grade'])->name('ujian.grade');
         Route::get('/ujian/create', [GuruExamController::class, 'create'])->name('ujian.create');
         Route::post('/ujian', [GuruExamController::class, 'store'])->name('ujian.store');
         Route::get('/ujian/{id}/edit', [GuruExamController::class, 'edit'])->whereNumber('id')->name('ujian.edit');
@@ -234,6 +219,11 @@ Route::middleware(['auth'])->group(function () {
     // ⚙️ RUTE ADMIN
     // =========================================================================
     Route::prefix('admin')->name('admin.')->middleware('role:admin')->group(function () {
+        Route::get('/dashboard', [\App\Http\Controllers\AdminController::class, 'index'])
+            ->middleware('verified')
+            ->name('dashboard');
+
+        Route::get('monitoring/status', [ActivityMonitoringController::class, 'adminStatus'])->name('monitoring.status');
         
         // Manajemen Users
         Route::get('users', [UserManagementController::class, 'index'])->name('users');

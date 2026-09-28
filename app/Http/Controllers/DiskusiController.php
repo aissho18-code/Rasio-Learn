@@ -37,7 +37,7 @@ class DiskusiController extends Controller
         ]);
 
         $actor = $request->user();
-        if ($actor->role === 'siswa' || $actor->hasRole('siswa')) {
+        if ($actor->role === 'siswa') {
             $kelasId = optional($actor->siswaProfile)->kelas_id;
             if ($kelasId) {
                 $notifications->notifyClassTeacher((int) $kelasId, new LearningNotification(
@@ -80,7 +80,7 @@ class DiskusiController extends Controller
             $notifications->sendOnce($diskusi->user, $notification);
         }
 
-        if ($actor->role === 'siswa' || $actor->hasRole('siswa')) {
+        if ($actor->role === 'siswa') {
             $kelasId = optional($actor->siswaProfile)->kelas_id;
             if ($kelasId) {
                 $notifications->notifyClassTeacher((int) $kelasId, $notification);

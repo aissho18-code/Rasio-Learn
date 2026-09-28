@@ -56,21 +56,21 @@
                     <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl font-bold">📊</div>
                     <div>
                         <span class="text-[11px] text-gray-400 font-medium">Rata-rata Nilai</span>
-                        <h3 class="text-xl font-extrabold text-slate-900">{{ $rataRataNilai ?? '85.5' }}</h3>
+                        <h3 class="text-xl font-extrabold text-slate-900">{{ $rataRataNilai }}</h3>
                     </div>
                 </div>
                 <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs flex items-center space-x-4">
                     <div class="w-12 h-12 rounded-xl bg-green-50 text-green-600 flex items-center justify-center text-xl font-bold">✅</div>
                     <div>
                         <span class="text-[11px] text-gray-400 font-medium">Tugas Dinilai</span>
-                        <h3 class="text-xl font-extrabold text-slate-900">{{ $totalDinilai ?? '12' }}</h3>
+                        <h3 class="text-xl font-extrabold text-slate-900">{{ $totalDinilai }}</h3>
                     </div>
                 </div>
                 <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs flex items-center space-x-4">
                     <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl font-bold">📝</div>
                     <div>
                         <span class="text-[11px] text-gray-400 font-medium">Kuis Selesai</span>
-                        <h3 class="text-xl font-extrabold text-slate-900">{{ $totalKuis ?? '4' }}</h3>
+                        <h3 class="text-xl font-extrabold text-slate-900">{{ $totalKuis }}</h3>
                     </div>
                 </div>
             </div>

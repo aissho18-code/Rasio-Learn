@@ -47,14 +47,14 @@
                             <span class="text-lg font-black tracking-wider text-blue-400 uppercase">RATIO LEARN</span>
                         </div>
                         <span class="text-xs text-slate-400 font-semibold mt-2 tracking-wide">
-                            {{ (auth()->user()->role === 'guru' || auth()->user()->hasRole('guru')) ? 'Portal Guru' : 'Portal Siswa' }}
+                            {{ auth()->user()->role === 'guru' ? 'Portal Guru' : 'Portal Siswa' }}
                         </span>
                     </div>
 
                     <!-- DAFTAR NAVIGASI SIDEBAR GURU / SISWA -->
                     <nav class="px-4 space-y-1.5 text-xs font-semibold overflow-y-auto flex-1 main-scroll">
                         @php
-                            $isGuru = auth()->user()->role === 'guru' || auth()->user()->hasRole('guru');
+                            $isGuru = auth()->user()->role === 'guru';
                         @endphp
 
                         <!-- 1. Dashboard -->

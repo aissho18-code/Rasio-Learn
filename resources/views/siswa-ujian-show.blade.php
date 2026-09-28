@@ -14,6 +14,14 @@
         <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">{{ session('success') }}</div>
     @endif
 
+    @if ($submission?->graded_at)
+        <section class="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
+            <h2 class="text-sm font-bold text-emerald-900">Hasil Penilaian</h2>
+            <p class="mt-2 text-2xl font-extrabold text-emerald-800">{{ $submission->score }}<span class="text-sm"> / 100</span></p>
+            <p class="mt-2 whitespace-pre-line text-xs leading-5 text-emerald-900">{{ $submission->feedback ?: 'Belum ada feedback dari Guru.' }}</p>
+        </section>
+    @endif
+
     <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div class="flex flex-wrap items-start justify-between gap-4">
             <div>
@@ -28,6 +36,7 @@
         </div>
     </section>
 
+    @unless($isResultOnly ?? false)
     <form method="POST" action="{{ route('siswa.ujian.submit', $exam->id) }}" class="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         @csrf
         <div>
@@ -43,5 +52,6 @@
             <button type="submit" class="rounded-lg bg-blue-700 px-5 py-2.5 text-xs font-bold text-white hover:bg-blue-800">{{ $submission ? 'Perbarui Jawaban' : 'Kirim Jawaban' }}</button>
         </div>
     </form>
+    @endunless
 </div>
 @endsection

@@ -37,7 +37,7 @@ class AppServiceProvider extends ServiceProvider
             $user = auth()->user();
             $kelasName = null;
 
-            if ($user && ($user->role === 'siswa' || (method_exists($user, 'hasRole') && $user->hasRole('siswa')))) {
+            if ($user && $user->role === 'siswa') {
                 $kelasName = optional(optional($user->siswaProfile)->kelas)->nama_kelas;
             }
 

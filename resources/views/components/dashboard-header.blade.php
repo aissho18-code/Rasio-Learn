@@ -1,8 +1,8 @@
 @php
     $user = auth()->user();
-    $roleName = ($user->role === 'guru' || $user->hasRole('guru'))
+    $roleName = $user->role === 'guru'
         ? 'Guru'
-        : (($user->role === 'siswa' || $user->hasRole('siswa')) ? 'Siswa' : 'Admin');
+        : ($user->role === 'siswa' ? 'Siswa' : 'Admin');
 
     $kelasName = null;
     if ($roleName === 'Siswa') {

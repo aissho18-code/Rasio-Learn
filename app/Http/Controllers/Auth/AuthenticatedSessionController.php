@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use App\Models\User;
 
@@ -41,34 +40,36 @@ class AuthenticatedSessionController extends Controller
         }
 
         // 4. Validasi Password
-        if (! Hash::check($credentials['password'], $user->password)) {
+        if (! Auth::guard('web')->attempt($credentials, $request->boolean('remember'))) {
             throw ValidationException::withMessages([
                 'email' => 'Email atau password tidak sesuai.',
             ]);
         }
 
-        $actualRole = $user->role;
-        if (! in_array($actualRole, ['admin', 'guru', 'siswa'], true)) {
-            $request->session()->forget('url.intended');
+        $request->session()->regenerate();
+        $request->session()->forget('url.intended');
+
+        $authenticatedUser = Auth::guard('web')->user();
+        $dashboardRoute = $authenticatedUser?->dashboardRouteName();
+
+        if ($dashboardRoute === null) {
+            Auth::guard('web')->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
 
             throw ValidationException::withMessages([
                 'email' => 'Role akun tidak valid. Hubungi administrator untuk memperbaiki akun Anda.',
             ]);
         }
 
-        Auth::guard('web')->login($user, $request->boolean('remember'));
-        $request->session()->regenerate();
-        $request->session()->forget('url.intended');
+        $authenticatedUser->forceFill(['last_activity_at' => now()])->saveQuietly();
 
-        return redirect()->route(match ($actualRole) {
-            'admin' => 'dashboard',
-            'guru' => 'guru.dashboard',
-            'siswa' => 'dashboard',
-        });
+        return redirect()->route($dashboardRoute);
     }
 
     public function destroy(Request $request)
     {
+        $request->user()?->forceFill(['last_activity_at' => null])->saveQuietly();
         Auth::guard('web')->logout();
 
         $request->session()->invalidate();

@@ -12,8 +12,24 @@ class AdminController extends Controller
     // Menampilkan daftar pengguna (Guru & Siswa) di Dashboard Admin
     public function index()
     {
-        $users = User::forRoles(['guru', 'siswa'])->get();
-        return view('dashboard-admin', compact('users'));
+        $users = User::whereIn('role', ['guru', 'siswa'])
+            ->with('siswaProfile.kelas')
+            ->orderBy('name')
+            ->get();
+        $guruUsers = $users->where('role', 'guru');
+        $siswaUsers = $users->where('role', 'siswa');
+        $totalGuruAktif = $guruUsers->filter(fn ($user) => $user->isOnline())->count();
+        $totalSiswaAktif = $siswaUsers->filter(fn ($user) => $user->isOnline())->count();
+        $totalPenggunaAktif = $totalGuruAktif + $totalSiswaAktif;
+
+        return view('dashboard-admin', compact(
+            'users',
+            'guruUsers',
+            'siswaUsers',
+            'totalGuruAktif',
+            'totalSiswaAktif',
+            'totalPenggunaAktif'
+        ));
     }
 
     // Menyimpan akun baru (Guru/Siswa) yang dibuat oleh Admin

@@ -92,7 +92,7 @@ class GuruAktivitasController extends Controller
                 title: 'Aktivitas & LKPD Baru',
                 message: 'Guru menerbitkan aktivitas baru: ' . $aktivitas->judul,
                 url: route('siswa.aktivitas.show', $aktivitas),
-                eventKey: 'activity.published:' . $aktivitas->id . ':' . $aktivitas->kelas_id
+                eventKey: 'activity.published:' . $aktivitas->id . ':' . $aktivitas->published_at->timestamp
             );
 
             $notifications->notifyStudentsInClass((int) $aktivitas->kelas_id, $notification);
@@ -130,9 +130,13 @@ class GuruAktivitasController extends Controller
 
         $wasPublished = $aktivitas->status === 'published';
 
-        DB::transaction(function () use ($r, $aktivitas) {
+        DB::transaction(function () use ($r, $aktivitas, $wasPublished) {
             $data = $r->only(['judul', 'tujuan', 'petunjuk', 'pertanyaan', 'respons_type', 'kelas_id']);
             $data['status'] = $r->input('status', 'draft');
+
+            if ($data['status'] === 'published' && ! $wasPublished) {
+                $data['published_at'] = now();
+            }
 
             if ($r->hasFile('lkpd')) {
                 if ($aktivitas->lkpd_path && Storage::disk('public')->exists($aktivitas->lkpd_path)) {
@@ -165,7 +169,7 @@ class GuruAktivitasController extends Controller
                 title: 'Aktivitas & LKPD Baru',
                 message: 'Guru menerbitkan aktivitas baru: ' . $aktivitas->judul,
                 url: route('siswa.aktivitas.show', $aktivitas),
-                eventKey: 'activity.published:' . $aktivitas->id . ':' . $aktivitas->kelas_id
+                eventKey: 'activity.published:' . $aktivitas->id . ':' . $aktivitas->published_at->timestamp
             ));
         }
 
@@ -188,6 +192,8 @@ class GuruAktivitasController extends Controller
 
     public function downloadLkpd(Aktivitas $aktivitas)
     {
+        abort_unless((int) $aktivitas->guru_id === (int) Auth::id(), 403);
+
         if (!$aktivitas->lkpd_path || !Storage::disk('public')->exists($aktivitas->lkpd_path)) {
             abort(404, 'File LKPD tidak ditemukan.');
         }

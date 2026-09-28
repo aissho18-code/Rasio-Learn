@@ -45,6 +45,22 @@ class SiswaExamController extends Controller
         return view('siswa-ujian-show', compact('exam'));
     }
 
+    public function result(Request $request, ExamSubmission $submission)
+    {
+        abort_unless(
+            (int) $submission->student_id === (int) $request->user()->id
+                && $submission->graded_at !== null,
+            404
+        );
+
+        $submission->load('exam.kelas');
+        $exam = $submission->exam;
+        $exam->setRelation('submissions', collect([$submission]));
+        $isResultOnly = true;
+
+        return view('siswa-ujian-show', compact('exam', 'isResultOnly'));
+    }
+
     public function submit(Request $request, $id, LearningNotificationService $notifications)
     {
         $student = $request->user();
@@ -63,7 +79,13 @@ class SiswaExamController extends Controller
 
         $submission = ExamSubmission::updateOrCreate(
             ['exam_id' => $exam->id, 'student_id' => $student->id],
-            ['response' => $data['response'], 'submitted_at' => now()]
+            [
+                'response' => $data['response'],
+                'submitted_at' => now(),
+                'score' => null,
+                'feedback' => null,
+                'graded_at' => null,
+            ]
         );
 
         $teacher = $exam->creator;

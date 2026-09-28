@@ -9,7 +9,7 @@ class AktivitasSubmission extends Model
     protected $table = 'aktivitas_submissions';
 
     protected $fillable = [
-        'aktivitas_id', 'siswa_id', 'jawaban', 'status', 'submitted_at'
+        'aktivitas_id', 'siswa_id', 'jawaban', 'status', 'submitted_at', 'text_answer', 'file_path'
     ];
 
     protected $casts = [

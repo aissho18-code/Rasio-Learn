@@ -90,14 +90,14 @@
                 <div class="text-left leading-tight pr-1">
                     <div class="text-xs font-bold text-slate-800">{{ Auth::user()->name }}</div>
                     <div class="text-[10px] text-slate-400 font-medium capitalize">
-                        @if(Auth::user()->role === 'siswa' || Auth::user()->hasRole('siswa'))
+                        @if(Auth::user()->role === 'siswa')
                             Siswa 
                             @if(isset($currentUserKelasName) && $currentUserKelasName)
                                 • Kelas {{ $currentUserKelasName }}
                             @else
                                 • <span class="text-red-500 font-semibold">Belum masuk kelas</span>
                             @endif
-                        @elseif(Auth::user()->role === 'guru' || Auth::user()->hasRole('guru'))
+                        @elseif(Auth::user()->role === 'guru')
                             Guru
                         @else
                             Admin

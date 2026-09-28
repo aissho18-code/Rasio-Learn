@@ -121,6 +121,36 @@ class GuruExamController extends Controller
             ->with('status', 'Ujian berhasil diperbarui.');
     }
 
+    public function grade(Request $request, ExamSubmission $submission, LearningNotificationService $notifications)
+    {
+        $guru = $request->user();
+        $submission->load('exam', 'student');
+        $this->ensureTeacherCanManage($guru->id, $submission->exam);
+
+        $data = $request->validate([
+            'score' => ['required', 'integer', 'between:0,100'],
+            'feedback' => ['nullable', 'string', 'max:5000'],
+        ]);
+
+        $submission->update([
+            'score' => $data['score'],
+            'feedback' => $data['feedback'] ?? null,
+            'graded_at' => now(),
+        ]);
+
+        if ($submission->student) {
+            $notifications->sendOnce($submission->student, new LearningNotification(
+                type: 'feedback',
+                title: 'Ujian Telah Dinilai',
+                message: 'Ujian ' . $submission->exam->title . ' telah dinilai oleh Guru.',
+                url: route('siswa.ujian.result', $submission),
+                eventKey: 'exam.graded:' . $submission->id . ':' . $submission->updated_at->timestamp
+            ));
+        }
+
+        return redirect()->route('guru.ujian.index')->with('status', 'Nilai ujian berhasil disimpan.');
+    }
+
     public function destroy(Request $request, $id)
     {
         $exam = Exam::findOrFail($id);

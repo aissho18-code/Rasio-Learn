@@ -26,10 +26,15 @@ class RoleBasedLoginTest extends TestCase
                 'password' => 'password',
                 'role' => 'siswa',
             ])
-            ->assertRedirect(route('dashboard'));
+            ->assertRedirect(route('admin.dashboard'));
         $this->assertAuthenticatedAs($admin);
-        $this->get(route('dashboard'))->assertOk()->assertViewIs('dashboard-admin');
+        $this->assertNotNull($admin->fresh()->last_activity_at);
+        $this->get(route('dashboard'))->assertRedirect(route('admin.dashboard'));
+        $this->get(route('admin.dashboard'))->assertOk()->assertViewIs('dashboard-admin');
+        $this->get(route('guru.dashboard'))->assertForbidden();
+        $this->get(route('siswa.dashboard'))->assertForbidden();
         $this->post(route('logout'))->assertRedirect(route('login'));
+        $this->assertNull($admin->fresh()->last_activity_at);
 
         $this->withSession(['url.intended' => route('admin.users.index')])
             ->post(route('login'), [
@@ -40,7 +45,11 @@ class RoleBasedLoginTest extends TestCase
             ->assertRedirect(route('guru.dashboard'));
         $this->assertAuthenticatedAs($teacher);
         $this->get(route('dashboard'))->assertRedirect(route('guru.dashboard'));
+        $this->get(route('guru.dashboard'))->assertOk()->assertViewIs('dashboard-guru');
+        $this->get(route('admin.dashboard'))->assertForbidden();
+        $this->get(route('siswa.dashboard'))->assertForbidden();
         $this->post(route('logout'))->assertRedirect(route('login'));
+        $this->assertNull($teacher->fresh()->last_activity_at);
 
         $kelas = Kelas::create(['nama_kelas' => 'Kelas Login']);
         $student->siswaProfile()->create(['kelas_id' => $kelas->id]);
@@ -48,9 +57,21 @@ class RoleBasedLoginTest extends TestCase
         $this->post(route('login'), [
             'email' => $student->email,
             'password' => 'password',
-        ])->assertRedirect(route('dashboard'));
+        ])->assertRedirect(route('siswa.dashboard'));
         $this->assertAuthenticatedAs($student);
-        $this->get(route('dashboard'))->assertOk()->assertViewIs('dashboard-siswa');
+        $this->get(route('dashboard'))->assertRedirect(route('siswa.dashboard'));
+        $this->get(route('siswa.dashboard'))->assertOk()->assertViewIs('dashboard-siswa');
+        $this->get(route('guru.dashboard'))->assertForbidden();
+        $this->get(route('admin.dashboard'))->assertForbidden();
+        $this->post(route('logout'))->assertRedirect(route('login'));
+        $this->assertNull($student->fresh()->last_activity_at);
+
+        $this->post(route('login'), [
+            'email' => $admin->email,
+            'password' => 'password',
+        ])->assertRedirect(route('admin.dashboard'));
+        $this->assertAuthenticatedAs($admin);
+        $this->get(route('admin.dashboard'))->assertOk()->assertViewIs('dashboard-admin');
     }
 
     public function test_each_portal_rejects_users_with_a_different_persisted_role(): void
@@ -66,7 +87,8 @@ class RoleBasedLoginTest extends TestCase
         $this->get(route('guru.dashboard'))->assertForbidden();
         $this->get(route('siswa.ujian.index'))->assertOk();
 
-        $this->get(route('dashboard'))->assertOk()->assertViewIs('dashboard-siswa');
+        $this->get(route('siswa.dashboard'))->assertOk()->assertViewIs('dashboard-siswa');
+        $this->get(route('dashboard'))->assertRedirect(route('siswa.dashboard'));
     }
 
     public function test_unknown_role_cannot_log_in_or_render_a_generic_dashboard(): void

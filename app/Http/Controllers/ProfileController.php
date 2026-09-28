@@ -32,7 +32,7 @@ class ProfileController extends Controller
 
         $user->update($data);
 
-        if ($request->filled('nis') && ($user->role === 'siswa' || $user->hasRole('siswa'))) {
+        if ($request->filled('nis') && $user->role === 'siswa') {
             \App\Models\SiswaProfile::updateOrCreate(
                 ['user_id' => $user->id],
                 ['nis' => $request->input('nis')]

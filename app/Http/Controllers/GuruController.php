@@ -44,6 +44,26 @@ class GuruController extends Controller
             ->orderBy('nama_kelas')
             ->get();
 
+        if ($selectedKelasId !== null && $selectedKelasId !== '') {
+            abort_unless($kelasList->contains('id', (int) $selectedKelasId), 404);
+            $selectedKelasId = (int) $selectedKelasId;
+        } else {
+            $selectedKelasId = null;
+        }
+
+        $kelasMonitoring = $kelasList
+            ->when($selectedKelasId, fn ($classes) => $classes->where('id', $selectedKelasId))
+            ->values();
+
+        foreach ($kelasMonitoring as $kelas) {
+            $kelas->load(['siswa' => fn ($query) => $query->forRoles('siswa')->orderBy('name')]);
+        }
+
+        $totalSiswa = $kelasMonitoring->sum(fn ($kelas) => $kelas->siswa->count());
+        $totalAktifSiswa = $kelasMonitoring->sum(
+            fn ($kelas) => $kelas->siswa->filter(fn ($siswa) => $siswa->isOnline())->count()
+        );
+
         // 2. Kalkulasi Statistik Real-Time dari Database
         $totalKelas = $kelasList->count();
 
@@ -68,12 +88,6 @@ class GuruController extends Controller
                 ->count()
             : 0;
 
-        $totalSiswa = User::whereHas('siswaProfile', function ($q) use ($selectedKelasId) {
-            if ($selectedKelasId) {
-                $q->where('kelas_id', $selectedKelasId);
-            }
-        })->count();
-
         // 3. Ambil Pengumuman Guru
         $pengumuman = Schema::hasTable('pengumuman')
             ? Pengumuman::where('guru_id', $guru->id)
@@ -89,12 +103,14 @@ class GuruController extends Controller
         return view('dashboard-guru', compact(
             'guru',
             'kelasList',
+            'kelasMonitoring',
             'selectedKelasId',
             'totalKelas',
             'totalAktivitas',
             'totalPendingSubmissions',
             'totalExams',
             'totalSiswa',
+            'totalAktifSiswa',
             'pengumuman'
         ));
     }
@@ -178,19 +194,21 @@ class GuruController extends Controller
             'status' => $request->status ?? 'aktif',
         ]);
 
-        $notifications->notifyStudentsInClass((int) $materi->kelas_id, new LearningNotification(
-            type: 'material',
-            title: 'Materi Baru',
-            message: 'Materi baru tersedia: ' . $materi->judul,
-            url: route('siswa.materi.show', $materi->id),
-            eventKey: 'material.published:' . $materi->id
-        ));
+        if ($materi->status === 'aktif') {
+            $notifications->notifyStudentsInClass((int) $materi->kelas_id, new LearningNotification(
+                type: 'material',
+                title: 'Materi Baru',
+                message: 'Materi baru tersedia: ' . $materi->judul,
+                url: route('siswa.materi.show', $materi->id),
+                eventKey: 'material.published:' . $materi->id
+            ));
+        }
 
         return redirect()->route('guru.materi.index')->with('success', 'Modul materi baru berhasil dipublikasikan!');
     }
 
     // 3. Memperbarui Materi (Edit)
-    public function materiUpdate(Request $request, $id)
+    public function materiUpdate(Request $request, $id, LearningNotificationService $notifications)
     {
         $request->validate([
             'judul' => 'required|string|max:255',
@@ -202,6 +220,7 @@ class GuruController extends Controller
 
         $kelasIds = Kelas::where('wali_kelas_id', Auth::id())->pluck('id');
         $materi = Materi::whereIn('kelas_id', $kelasIds)->findOrFail($id);
+        $wasActive = $materi->status === 'aktif';
 
         if ($request->hasFile('file_materi')) {
             if ($materi->file_path && Storage::disk('public')->exists($materi->file_path)) {
@@ -217,6 +236,16 @@ class GuruController extends Controller
             'status' => $request->status ?? $materi->status,
         ]);
 
+        if ($materi->status === 'aktif' && ! $wasActive) {
+            $notifications->notifyStudentsInClass((int) $materi->kelas_id, new LearningNotification(
+                type: 'material',
+                title: 'Materi Baru',
+                message: 'Materi baru tersedia: ' . $materi->judul,
+                url: route('siswa.materi.show', $materi->id),
+                eventKey: 'material.published:' . $materi->id
+            ));
+        }
+
         return redirect()->route('guru.materi.index')->with('success', 'Modul materi berhasil diperbarui!');
     }
 
@@ -224,6 +253,11 @@ class GuruController extends Controller
     public function materiToggleLock(Request $request, $id, LearningNotificationService $notifications)
     {
         $materi = Materi::findOrFail($id);
+        abort_unless(
+            Kelas::whereKey($materi->kelas_id)->where('wali_kelas_id', Auth::id())->exists(),
+            403,
+            'Anda tidak mengampu kelas materi ini.'
+        );
         $newStatus = $request->input('status', $materi->status === 'aktif' ? 'terkunci' : 'aktif');
 
         if (! in_array($newStatus, ['aktif', 'terkunci'], true)) {
@@ -255,6 +289,11 @@ class GuruController extends Controller
     public function materiDestroy($id)
     {
         $materi = Materi::findOrFail($id);
+        abort_unless(
+            Kelas::whereKey($materi->kelas_id)->where('wali_kelas_id', Auth::id())->exists(),
+            403,
+            'Anda tidak mengampu kelas materi ini.'
+        );
 
         if ($materi->file_path && Storage::disk('public')->exists($materi->file_path)) {
             Storage::disk('public')->delete($materi->file_path);
@@ -268,7 +307,9 @@ class GuruController extends Controller
     // 6. Fungsi untuk membuka (unlock) materi siswa berikutnya
     public function unlockMateri(Request $request, $id)
     {
-        $progress = MateriProgress::findOrFail($id);
+        $progress = MateriProgress::whereKey($id)
+            ->whereHas('materi.kelas', fn ($query) => $query->where('wali_kelas_id', Auth::id()))
+            ->firstOrFail();
         $progress->update([
             'status' => 'unlocked',
             'unlocked_by' => auth()->id(),

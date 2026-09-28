@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Models\Kelas;
 use App\Models\SiswaProfile;
 use App\Models\GuruProfile;
+use Illuminate\Validation\Rule;
 use Spatie\Permission\Models\Role;
 
 class KelasManagementController extends Controller
@@ -26,7 +27,7 @@ class KelasManagementController extends Controller
     {
         $data = $r->validate([
             'nama_kelas' => 'required|string|max:150',
-            'wali_kelas_id' => 'nullable|exists:users,id',
+            'wali_kelas_id' => ['nullable', Rule::exists('users', 'id')->where('role', 'guru')],
             'jadwal' => 'nullable|string|max:255',
             'kapasitas' => 'nullable|integer|min:1',
         ]);
@@ -44,7 +45,7 @@ class KelasManagementController extends Controller
     {
         $data = $r->validate([
             'nama_kelas' => 'required|string|max:150',
-            'wali_kelas_id' => 'nullable|exists:users,id',
+            'wali_kelas_id' => ['nullable', Rule::exists('users', 'id')->where('role', 'guru')],
             'jadwal' => 'nullable|string|max:255',
             'kapasitas' => 'nullable|integer|min:1',
         ]);

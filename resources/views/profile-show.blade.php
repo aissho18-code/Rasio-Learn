@@ -36,14 +36,14 @@
                 <div class="space-y-1">
                     <div class="text-base font-bold text-gray-900">{{ $user->name }}</div>
                     <div class="text-xs text-slate-500 font-medium capitalize">
-                        @if($user->role === 'siswa' || $user->hasRole('siswa'))
+                        @if($user->role === 'siswa')
                             Siswa 
                             @if(optional(optional($user->siswaProfile)->kelas)->nama_kelas)
                                 • Kelas {{ optional($user->siswaProfile->kelas)->nama_kelas }}
                             @else
                                 • <span class="text-red-500 font-semibold">Belum masuk kelas</span>
                             @endif
-                        @elseif($user->role === 'guru' || $user->hasRole('guru'))
+                        @elseif($user->role === 'guru')
                             Guru
                         @else
                             Admin

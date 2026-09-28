@@ -9,7 +9,12 @@ class Aktivitas extends Model
     protected $table = 'aktivitas';
 
     protected $fillable = [
-        'guru_id', 'kelas_id', 'judul', 'topik', 'tujuan', 'petunjuk', 'tipe_penyerahan', 'status'
+        'guru_id', 'kelas_id', 'judul', 'topik', 'tujuan', 'petunjuk', 'tipe_penyerahan', 'status', 'lkpd_path',
+        'published_at', 'respons_type', 'pertanyaan'
+    ];
+
+    protected $casts = [
+        'published_at' => 'datetime',
     ];
 
     public function guru()

@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Kelas;
 use App\Models\Exam;
+use App\Models\Aktivitas;
 use App\Models\Materi;
 use App\Models\MataPelajaran;
 use App\Models\Submission;
@@ -43,6 +44,192 @@ class LearningNotificationFlowTest extends TestCase
             $secondTargetStudent->notifications->first()->id
         );
         $this->assertSame('/siswa/tugas/1', $targetStudent->notifications->first()->data['url']);
+    }
+
+    public function test_student_material_list_only_uses_their_assigned_class(): void
+    {
+        $targetClass = Kelas::create(['nama_kelas' => 'Kelas Materi Siswa']);
+        $otherClass = Kelas::create(['nama_kelas' => 'Kelas Materi Lain']);
+        $student = $this->createStudent($targetClass);
+        $mapel = MataPelajaran::create(['nama_mapel' => 'Matematika']);
+        $targetMaterial = Materi::create([
+            'kelas_id' => $targetClass->id,
+            'mapel_id' => $mapel->id,
+            'urutan' => 1,
+            'judul' => 'Materi Kelas Siswa',
+            'konten' => 'Konten siswa',
+            'status' => 'aktif',
+        ]);
+        Materi::create([
+            'kelas_id' => $otherClass->id,
+            'mapel_id' => $mapel->id,
+            'urutan' => 1,
+            'judul' => 'Materi Kelas Lain',
+            'konten' => 'Konten kelas lain',
+            'status' => 'aktif',
+        ]);
+        Materi::create([
+            'kelas_id' => $targetClass->id,
+            'mapel_id' => $mapel->id,
+            'urutan' => 2,
+            'judul' => 'Materi Draft',
+            'konten' => 'Draft guru',
+            'status' => 'draft',
+        ]);
+
+        $this->actingAs($student)
+            ->get(route('siswa.materi.index'))
+            ->assertOk()
+            ->assertViewHas('groupedMateris', function ($groupedMateris) use ($targetMaterial) {
+                return $groupedMateris->sum(fn ($materials) => $materials->count()) === 1
+                    && $groupedMateris->first()->first()->is($targetMaterial);
+            });
+
+        $this->get(route('siswa.materi.show', $targetMaterial->id))->assertOk();
+        $this->get(route('siswa.materi.show', Materi::where('judul', 'Materi Kelas Lain')->value('id')))
+            ->assertNotFound();
+        $this->get(route('siswa.materi.show', Materi::where('judul', 'Materi Draft')->value('id')))
+            ->assertNotFound();
+    }
+
+    public function test_material_notifications_are_sent_only_when_published_to_its_class(): void
+    {
+        $teacher = $this->createUser('guru');
+        $targetClass = Kelas::create(['nama_kelas' => 'Kelas Materi Publish', 'wali_kelas_id' => $teacher->id]);
+        $otherClass = Kelas::create(['nama_kelas' => 'Kelas Materi Lain']);
+        $student = $this->createStudent($targetClass);
+        $otherStudent = $this->createStudent($otherClass);
+
+        $this->actingAs($teacher)
+            ->post(route('guru.materi.store'), [
+                'judul' => 'Materi Draft',
+                'pekan' => '1',
+                'kelas_id' => $targetClass->id,
+                'konten' => 'Konten materi',
+                'status' => 'draft',
+            ])
+            ->assertRedirect(route('guru.materi.index'));
+
+        $materi = Materi::where('judul', 'Materi Draft')->firstOrFail();
+        $this->assertSame(0, $student->notifications()->count());
+
+        $this->put(route('guru.materi.update', $materi->id), [
+            'judul' => 'Materi Draft',
+            'pekan' => '1',
+            'konten' => 'Konten materi',
+            'status' => 'aktif',
+        ])->assertRedirect(route('guru.materi.index'));
+
+        $this->assertSame(1, $student->notifications()->count());
+        $this->assertSame(0, $otherStudent->notifications()->count());
+        $this->assertSame(
+            route('siswa.materi.show', $materi->id),
+            $student->notifications()->first()->data['url']
+        );
+    }
+
+    public function test_student_activity_detail_and_download_require_published_class_access(): void
+    {
+        Storage::fake('public');
+
+        $teacher = $this->createUser('guru');
+        $targetClass = Kelas::create(['nama_kelas' => 'Kelas Aktivitas', 'wali_kelas_id' => $teacher->id]);
+        $otherClass = Kelas::create(['nama_kelas' => 'Kelas Aktivitas Lain']);
+        $student = $this->createStudent($targetClass);
+
+        $targetActivity = Aktivitas::create([
+            'guru_id' => $teacher->id,
+            'kelas_id' => $targetClass->id,
+            'judul' => 'Aktivitas Target',
+            'status' => 'published',
+        ]);
+        $targetActivity->forceFill(['lkpd_path' => 'lkpd/target.pdf'])->save();
+        Storage::disk('public')->put('lkpd/target.pdf', 'target');
+
+        $otherActivity = Aktivitas::create([
+            'guru_id' => $teacher->id,
+            'kelas_id' => $otherClass->id,
+            'judul' => 'Aktivitas Kelas Lain',
+            'status' => 'published',
+        ]);
+        $otherActivity->forceFill(['lkpd_path' => 'lkpd/other.pdf'])->save();
+        Storage::disk('public')->put('lkpd/other.pdf', 'other');
+
+        $draftActivity = Aktivitas::create([
+            'guru_id' => $teacher->id,
+            'kelas_id' => $targetClass->id,
+            'judul' => 'Aktivitas Draft',
+            'status' => 'draft',
+        ]);
+
+        $this->actingAs($student)
+            ->get(route('siswa.aktivitas.show', $targetActivity))
+            ->assertOk();
+        $this->get(route('siswa.aktivitas.lkpd.download', $targetActivity))->assertOk();
+        $this->get(route('siswa.aktivitas.show', $otherActivity))->assertForbidden();
+        $this->get(route('siswa.aktivitas.lkpd.download', $otherActivity))->assertForbidden();
+        $this->get(route('siswa.aktivitas.show', $draftActivity))->assertForbidden();
+
+        $otherTeacher = $this->createUser('guru');
+        $this->actingAs($otherTeacher)
+            ->get(route('guru.aktivitas.lkpd.download', $targetActivity))
+            ->assertForbidden();
+    }
+
+    public function test_published_activity_submission_notifies_only_its_class_teacher(): void
+    {
+        $teacher = $this->createUser('guru');
+        $targetClass = Kelas::create(['nama_kelas' => 'Kelas Aktivitas Publish', 'wali_kelas_id' => $teacher->id]);
+        $otherClass = Kelas::create(['nama_kelas' => 'Kelas Aktivitas Bukan Target']);
+        $student = $this->createStudent($targetClass);
+        $otherStudent = $this->createStudent($otherClass);
+
+        $this->actingAs($teacher)
+            ->post(route('guru.aktivitas.store'), [
+                'judul' => 'Aktivitas Terhubung',
+                'tujuan' => 'Latihan kelas',
+                'pertanyaan' => 'Tuliskan jawaban',
+                'respons_type' => 'text',
+                'kelas_id' => $targetClass->id,
+                'status' => 'draft',
+            ])
+            ->assertRedirect(route('guru.aktivitas.index'));
+
+        $activity = Aktivitas::where('judul', 'Aktivitas Terhubung')->firstOrFail();
+        $this->assertNull($activity->published_at);
+        $this->assertSame(0, $student->notifications()->count());
+
+        $this->put(route('guru.aktivitas.update', $activity->id), [
+            'judul' => 'Aktivitas Terhubung',
+            'tujuan' => 'Latihan kelas',
+            'pertanyaan' => 'Tuliskan jawaban',
+            'respons_type' => 'text',
+            'kelas_id' => $targetClass->id,
+            'status' => 'published',
+        ])->assertRedirect(route('guru.aktivitas.index'));
+
+        $activity->refresh();
+        $this->assertNotNull($activity->published_at);
+        $this->assertSame(1, $student->notifications()->count());
+        $this->assertSame(0, $otherStudent->notifications()->count());
+
+        $this->actingAs($student)
+            ->post(route('siswa.aktivitas.submit', $activity), [
+                'text_answer' => 'Jawaban dari siswa target',
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('aktivitas_submissions', [
+            'aktivitas_id' => $activity->id,
+            'siswa_id' => $student->id,
+            'text_answer' => 'Jawaban dari siswa target',
+            'status' => 'submitted',
+        ]);
+        $this->assertSame(1, $teacher->notifications()->count());
+        $this->assertSame(
+            route('guru.aktivitas.submissions', $activity->id),
+            $teacher->notifications()->first()->data['url']
+        );
     }
 
     public function test_notification_read_is_scoped_to_the_signed_in_user_and_redirects_to_target(): void
@@ -192,10 +379,49 @@ class LearningNotificationFlowTest extends TestCase
         $this->assertCount(1, $teacher->notifications);
         $this->assertSame('exam', $teacher->notifications()->first()->data['type']);
 
+        $otherTeacher = $this->createUser('guru');
+        $this->actingAs($otherTeacher)
+            ->post(route('guru.ujian.grade', $exam->submissions()->firstOrFail()), [
+                'score' => 20,
+                'feedback' => 'Tidak berwenang.',
+            ])
+            ->assertForbidden();
+
         $this->actingAs($student)
             ->get(route('siswa.ujian.show', $exam->id))
             ->assertOk()
             ->assertSee('Kuis Alur');
+
+        $this->actingAs($teacher)
+            ->post(route('guru.ujian.grade', $exam->submissions()->firstOrFail()), [
+                'score' => 88,
+                'feedback' => 'Jawaban tepat dan lengkap.',
+            ])
+            ->assertRedirect(route('guru.ujian.index'));
+
+        $this->assertDatabaseHas('exam_submissions', [
+            'exam_id' => $exam->id,
+            'student_id' => $student->id,
+            'score' => 88,
+            'feedback' => 'Jawaban tepat dan lengkap.',
+        ]);
+        $this->assertSame(1, $student->notifications()->where('data->type', 'feedback')->count());
+
+        $gradeNotification = $student->notifications()->where('data->type', 'feedback')->firstOrFail();
+        $this->actingAs($student)
+            ->post(route('notifications.read', $gradeNotification->id))
+            ->assertRedirect(route('siswa.ujian.result', $exam->submissions()->firstOrFail()));
+
+        $this->get(route('siswa.ujian.result', $exam->submissions()->firstOrFail()))
+            ->assertOk()
+            ->assertSee('88')
+            ->assertSee('Jawaban tepat dan lengkap.');
+
+        $this->get(route('siswa.evaluasi'))
+            ->assertOk()
+            ->assertSee('Kuis Alur')
+            ->assertSee('Jawaban tepat dan lengkap.')
+            ->assertSee('88');
 
         $this->actingAs($teacher)
             ->get(route('guru.ujian.index'))

@@ -23,7 +23,7 @@
 
     @if(auth()->user()->role === 'admin')
         @include('layouts.sidebar-admin')
-    @elseif(auth()->user()->role === 'guru' || auth()->user()->hasRole('guru'))
+    @elseif(auth()->user()->role === 'guru')
         @include('layouts.sidebar-guru')
     @else
         @include('layouts.sidebar-siswa-compact')

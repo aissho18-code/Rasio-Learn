@@ -33,7 +33,7 @@
                     <input name="email" type="email" value="{{ old('email', $user->email) }}" required class="w-full text-xs border border-gray-200 rounded-xl p-3 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:outline-none">
                 </div>
 
-                @if($user->role === 'siswa' || $user->hasRole('siswa'))
+                @if($user->role === 'siswa')
                     <div>
                         <label class="block text-xs font-bold text-gray-700 mb-1">Kelas</label>
                         <input class="w-full text-xs border border-gray-200 rounded-xl p-3 bg-gray-100 text-slate-500 cursor-not-allowed" value="{{ optional(optional($user->siswaProfile)->kelas)->nama_kelas ?? 'Belum tergabung' }}" readonly>

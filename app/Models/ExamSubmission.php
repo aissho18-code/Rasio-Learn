@@ -11,10 +11,14 @@ class ExamSubmission extends Model
         'student_id',
         'response',
         'submitted_at',
+        'score',
+        'feedback',
+        'graded_at',
     ];
 
     protected $casts = [
         'submitted_at' => 'datetime',
+        'graded_at' => 'datetime',
     ];
 
     public function exam()

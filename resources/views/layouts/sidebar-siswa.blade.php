@@ -9,8 +9,8 @@
 
         <!-- MENU SIDEBAR SISWA (9 MENU LENGKAP PRESISI DENGAN GAMBAR PRESENSI) -->
         <nav class="px-4 py-6 space-y-1.5 flex-1">
-            <a href="{{ route('dashboard') }}" 
-               class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs transition {{ request()->routeIs('dashboard') ? 'bg-[#E0EDFF] text-[#2563EB] font-bold shadow-xs' : 'text-slate-300 hover:bg-slate-800/50 hover:text-white font-medium' }}">
+                <a href="{{ route('siswa.dashboard') }}"
+                    class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs transition {{ request()->routeIs('siswa.dashboard') ? 'bg-[#E0EDFF] text-[#2563EB] font-bold shadow-xs' : 'text-slate-300 hover:bg-slate-800/50 hover:text-white font-medium' }}">
                 <span class="text-base">🏠</span><span>Dashboard</span>
             </a>
             

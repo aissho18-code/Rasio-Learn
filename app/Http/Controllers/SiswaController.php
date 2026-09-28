@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Materi;
 use App\Models\MateriProgress;
+use App\Models\ExamSubmission;
 use App\Models\Submission;
 use App\Models\Presensi;
 use App\Models\Ujian;
@@ -22,10 +23,30 @@ use Carbon\Carbon;
 
 class SiswaController extends Controller
 {
+    public function dashboard()
+    {
+        $user = Auth::user();
+        $kelasId = optional($user->siswaProfile)->kelas_id;
+
+        if (empty($kelasId)) {
+            return view('dashboard-siswa-no-class');
+        }
+
+        $progressList = MateriProgress::with('materi.mapel')
+            ->where('siswa_id', $user->id)
+            ->get();
+
+        return view('dashboard-siswa', compact('progressList'));
+    }
+
     // Menampilkan detail materi untuk siswa (DIPERBAIKI + Markdown Render)
     public function showMateri($id, MarkdownRenderer $markdownRenderer)
     {
-        $materi = Materi::with(['tugas', 'mapel', 'kelas'])->findOrFail($id);
+        $kelasId = optional(Auth::user()->siswaProfile)->kelas_id;
+        $materi = Materi::with(['tugas', 'mapel', 'kelas'])
+            ->where('kelas_id', $kelasId)
+            ->whereIn('status', ['aktif', 'terkunci', 'locked'])
+            ->findOrFail($id);
         $siswaId = auth()->id();
         
         // Periksa progress penguncian materi
@@ -34,8 +55,8 @@ class SiswaController extends Controller
             ->first();
 
         // 1. Cek status penguncian dari tabel Materi (jika guru mengunci langsung)
-        $isLockedByGuru = (isset($materi->is_locked) && $materi->is_locked) || 
-                           (isset($materi->status) && $materi->status === 'locked');
+        $isLockedByGuru = (isset($materi->is_locked) && $materi->is_locked)
+            || in_array($materi->status, ['terkunci', 'locked'], true);
 
         // 2. Cek status penguncian dari tabel MateriProgress
         $isLockedByProgress = $progress && $progress->status === 'locked';
@@ -63,10 +84,17 @@ class SiswaController extends Controller
     // Menampilkan daftar materi lengkap secara real-time untuk siswa (DIPERBAIKI + Markdown Render)
     public function materiIndex(MarkdownRenderer $markdownRenderer)
     {
-        $siswaId = auth()->id();
+        $siswa = Auth::user();
+        $siswaId = $siswa->id;
+        $kelasId = optional($siswa->siswaProfile)->kelas_id;
 
         // Mengambil materi diurutkan berdasarkan mapel dan urutan terbaru
-        $materis = Materi::with(['mapel', 'kelas'])->orderBy('mapel_id')->orderBy('urutan', 'asc')->get();
+        $materis = Materi::with(['mapel', 'kelas'])
+            ->where('kelas_id', $kelasId)
+            ->whereIn('status', ['aktif', 'terkunci', 'locked'])
+            ->orderBy('mapel_id')
+            ->orderBy('urutan', 'asc')
+            ->get();
         
         // Render Markdown pada kolom konten untuk setiap item materi
         $materis->transform(function ($item) use ($markdownRenderer) {
@@ -91,7 +119,7 @@ class SiswaController extends Controller
     {
         $user = auth()->user();
 
-        if ($user->role === 'guru' || (method_exists($user, 'hasRole') && $user->hasRole('guru'))) {
+        if ($user->role === 'guru') {
             return redirect()->route('guru.tugas.index');
         }
 
@@ -380,7 +408,12 @@ class SiswaController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
-        $totalTugasDiunggah = $submissions->count() + $ujianSubmissions->count();
+        $examSubmissions = ExamSubmission::with('exam')
+            ->where('student_id', $siswaId)
+            ->orderByDesc('submitted_at')
+            ->get();
+
+        $totalTugasDiunggah = $submissions->count() + $ujianSubmissions->count() + $examSubmissions->count();
         
         $allNilai = collect();
         foreach($submissions as $s) { 
@@ -390,11 +423,44 @@ class SiswaController extends Controller
         foreach($ujianSubmissions as $us) { 
             if($us->nilai !== null) $allNilai->push($us->nilai); 
         }
+        foreach($examSubmissions as $examSubmission) {
+            if($examSubmission->score !== null) $allNilai->push($examSubmission->score);
+        }
 
         $tugasSudahDinilai = $allNilai->count();
         $rataRataNilai = $allNilai->count() > 0 ? round($allNilai->avg(), 1) : 0;
 
-        return view('siswa-evaluasi', compact('submissions', 'ujianSubmissions', 'totalTugasDiunggah', 'tugasSudahDinilai', 'rataRataNilai'));
+        $evaluasiList = $submissions->map(fn ($submission) => (object) [
+            'judul' => $submission->tugas?->judul ?? 'Tugas',
+            'updated_at' => $submission->updated_at,
+            'nilai' => $submission->final_score ?? $submission->nilai,
+            'catatan_guru' => $submission->final_feedback ?? $submission->catatan_guru,
+        ])->concat($ujianSubmissions->map(fn ($submission) => (object) [
+            'judul' => $submission->ujian?->judul_ujian ?? 'Kuis',
+            'updated_at' => $submission->updated_at,
+            'nilai' => $submission->nilai,
+            'catatan_guru' => $submission->catatan_guru ?? null,
+        ]))->concat($examSubmissions->map(fn ($submission) => (object) [
+            'judul' => $submission->exam?->title ?? 'Ujian',
+            'updated_at' => $submission->graded_at ?? $submission->submitted_at,
+            'nilai' => $submission->score,
+            'catatan_guru' => $submission->feedback,
+        ]))->sortByDesc('updated_at')->values();
+
+        $totalDinilai = $tugasSudahDinilai;
+        $totalKuis = $ujianSubmissions->count() + $examSubmissions->count();
+
+        return view('siswa-evaluasi', compact(
+            'submissions',
+            'ujianSubmissions',
+            'examSubmissions',
+            'evaluasiList',
+            'totalTugasDiunggah',
+            'tugasSudahDinilai',
+            'totalDinilai',
+            'totalKuis',
+            'rataRataNilai'
+        ));
     }
 
     // Detail Hasil Penilaian Ujian

@@ -37,7 +37,7 @@ class SiswaAktivitasController extends Controller
     public function apiIndex()
     {
         $siswa = Auth::user();
-        $kelasId = optional($siswa->siswaProfile)->kelas_id ?? $siswa->kelas_id;
+        $kelasId = optional($siswa->siswaProfile)->kelas_id;
 
         $aktivitas = Aktivitas::where(function ($q) use ($kelasId) {
             $q->whereNull('kelas_id');
@@ -72,10 +72,7 @@ class SiswaAktivitasController extends Controller
 
     public function show(Aktivitas $aktivitas)
     {
-        $kelasId = optional(Auth::user()->siswaProfile)->kelas_id;
-        if ($aktivitas->kelas_id && $aktivitas->kelas_id != $kelasId) {
-            abort(403, 'Aktivitas ini tidak ditujukan untuk kelas Anda.');
-        }
+        $this->ensureStudentCanAccess($aktivitas);
 
         // Muat relasi blocks untuk komponen interaktif
         $aktivitas->load('blocks');
@@ -145,9 +142,23 @@ class SiswaAktivitasController extends Controller
 
     public function downloadLkpd(Aktivitas $aktivitas)
     {
+        $this->ensureStudentCanAccess($aktivitas);
+
         if (!$aktivitas->lkpd_path || !Storage::disk('public')->exists($aktivitas->lkpd_path)) {
             abort(404, 'File LKPD tidak ditemukan.');
         }
         return Storage::disk('public')->download($aktivitas->lkpd_path);
+    }
+
+    private function ensureStudentCanAccess(Aktivitas $aktivitas): void
+    {
+        $kelasId = optional(Auth::user()->siswaProfile)->kelas_id;
+
+        abort_unless(
+            $aktivitas->status === 'published'
+                && (is_null($aktivitas->kelas_id) || (int) $aktivitas->kelas_id === (int) $kelasId),
+            403,
+            'Aktivitas ini tidak ditujukan untuk kelas Anda.'
+        );
     }
 }
