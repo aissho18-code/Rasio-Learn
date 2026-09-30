@@ -14,43 +14,19 @@
 </head>
 <body class="bg-[#F0F5FE] text-slate-800 h-screen w-screen overflow-hidden flex select-none">
 
-    <!-- SIDEBAR GURU -->
-    <aside class="w-64 bg-[#0F1A34] text-white flex flex-col justify-between shrink-0 h-full relative z-20 border-r border-slate-800/50">
-        <div class="flex flex-col h-full overflow-y-auto">
-            <div class="p-6 flex flex-col items-center border-b border-slate-800/60">
-                <img src="{{ asset('images/design-login.png') }}" alt="Ratio Learn Logo" class="h-12 w-auto object-contain">
-                <span class="text-[10px] text-blue-300 font-medium tracking-wide mt-1.5">Portal Guru</span>
-            </div>
-            <nav class="px-4 py-6 space-y-1.5 flex-1">
-                <a href="{{ route('dashboard') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs text-slate-300 hover:bg-slate-800/50 hover:text-white font-medium">
-                    <span class="text-base">🏠</span><span>Dashboard</span>
-                </a>
-                <a href="{{ route('guru.refleksi.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs bg-[#E0EDFF] text-[#2563EB] font-bold shadow-xs">
-                    <span class="text-base">💭</span><span>Kelola Refleksi</span>
-                </a>
-            </nav>
-            <div class="p-4 border-t border-slate-800/60">
-                <form method="POST" action="{{ route('logout') }}">
-                    @csrf
-                    <button type="submit" class="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-slate-400 hover:text-red-400 hover:bg-red-500/10 text-xs font-semibold transition">
-                        <span class="text-base">↪</span><span>Logout</span>
-                    </button>
-                </form>
-            </div>
-        </div>
-    </aside>
+    @include('layouts.sidebar-guru')
 
     <!-- MAIN CONTENT AREA -->
     <main class="flex-1 flex flex-col h-full overflow-y-auto">
         <header class="px-8 py-4 flex items-center justify-end gap-5">
             <x-notification-bell />
-            <div class="flex items-center gap-3 bg-white px-3.5 py-1.5 rounded-full shadow-xs border border-slate-100">
+            <a href="{{ route('profile.show') }}" class="flex items-center gap-3 bg-white px-3.5 py-1.5 rounded-full shadow-xs border border-slate-100 hover:border-blue-300 transition">
                 <div class="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-xs">👤</div>
                 <div class="text-left leading-tight pr-1">
                     <div class="text-xs font-bold text-slate-800">{{ Auth::user()->name ?? 'Guru Pengajar' }}</div>
                     <div class="text-[10px] text-slate-400 font-medium capitalize">{{ Auth::user()->role ?? 'Guru' }}</div>
                 </div>
-            </div>
+            </a>
         </header>
 
         <div class="px-8 pb-8 space-y-6 flex-1 max-w-6xl">

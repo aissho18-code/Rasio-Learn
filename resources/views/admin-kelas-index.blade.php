@@ -16,11 +16,8 @@
         <div>
             <!-- Header / Logo App -->
             <div class="flex items-center gap-3 px-3 py-4 mb-6">
-                <div class="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center font-bold text-white shadow-md text-sm">
-                    🎓
-                </div>
+                <img src="{{ asset('images/design-login.png') }}" alt="Ratio Learn Logo" class="h-10 w-auto object-contain">
                 <div>
-                    <div class="font-extrabold text-sm text-white leading-tight">Ratio Learn</div>
                     <div class="text-[10px] text-blue-400 font-semibold tracking-wider uppercase mt-0.5">Portal Admin</div>
                 </div>
             </div>

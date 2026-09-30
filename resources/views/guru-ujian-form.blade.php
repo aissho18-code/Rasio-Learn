@@ -107,7 +107,7 @@
             <div class="flex items-center justify-between">
                 <div>
                     <h1 class="text-xl font-extrabold text-slate-900">{{ $exam->exists ? 'Edit Paket Ujian' : 'Buat Paket Ujian Baru' }}</h1>
-                    <p class="text-xs text-slate-500 mt-0.5">Kelola informasi ujian, kelas target, dan batas kecurangan.</p>
+                    <p class="text-xs text-slate-500 mt-0.5">Atur model, jadwal, penilaian, dan akses ujian.</p>
                 </div>
                 <a href="{{ route('guru.ujian.index') }}" class="text-xs font-bold text-blue-600 hover:underline">
                     ← Kembali ke Daftar Ujian
@@ -135,6 +135,11 @@
                         <input type="text" name="title" required value="{{ old('title', $exam->title) }}" placeholder="Judul Ujian / Quiz..." class="w-full text-xs font-medium border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-300">
                     </div>
 
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Deskripsi / Petunjuk</label>
+                        <textarea name="description" rows="3" placeholder="Petunjuk pengerjaan ujian..." class="w-full text-xs font-medium border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-300">{{ old('description', $exam->description) }}</textarea>
+                    </div>
+
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-xs font-bold text-slate-700 mb-1">Kelas Target</label>
@@ -154,9 +159,57 @@
                         </div>
                     </div>
 
-                    <div>
-                        <label class="block text-xs font-bold text-slate-700 mb-1">Deskripsi Ujian / Petunjuk</label>
-                        <textarea name="description" rows="3" placeholder="Petunjuk pengerjaan ujian..." class="w-full text-xs font-medium border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-300">{{ old('description', $exam->description) }}</textarea>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Model Ujian</label>
+                            <select name="exam_model" required class="w-full text-xs font-medium border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-300">
+                                @foreach (['cbt' => 'CBT', 'essay' => 'Esai', 'mixed' => 'Campuran', 'quiz_interactive' => 'Quiz Interaktif'] as $value => $label)
+                                    <option value="{{ $value }}" @selected(old('exam_model', $exam->exam_model ?? 'cbt') === $value)>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Status</label>
+                            <select name="status" required class="w-full text-xs font-medium border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-300">
+                                @foreach (['draft' => 'Draft', 'published' => 'Dipublikasikan', 'closed' => 'Ditutup'] as $value => $label)
+                                    <option value="{{ $value }}" @selected(old('status', $exam->status ?? 'draft') === $value)>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Durasi (menit)</label>
+                            <input type="number" name="duration_minutes" min="1" max="600" required value="{{ old('duration_minutes', $exam->duration_minutes ?? 60) }}" class="w-full text-xs font-medium border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-300">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Jumlah Soal yang Direncanakan</label>
+                            <input type="number" name="question_count" min="1" max="500" required value="{{ old('question_count', $exam->question_count ?: 20) }}" class="w-full text-xs font-medium border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-300">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Nilai Minimal / KKM</label>
+                            <input type="number" name="min_score" min="0" max="100" required value="{{ old('min_score', $exam->min_score ?? 75) }}" class="w-full text-xs font-medium border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-300">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Maksimal Percobaan</label>
+                            <input type="number" name="max_attempts" min="1" max="10" required value="{{ old('max_attempts', $exam->max_attempts ?? 1) }}" class="w-full text-xs font-medium border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-300">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 border-y border-slate-100 py-4">
+                        @foreach ([
+                            'shuffle_questions' => 'Acak urutan soal',
+                            'shuffle_options' => 'Acak pilihan jawaban',
+                            'show_score' => 'Tampilkan nilai setelah selesai',
+                            'show_explanations' => 'Tampilkan pembahasan setelah selesai',
+                        ] as $setting => $label)
+                            <label class="flex items-center gap-2 text-xs font-medium text-slate-700">
+                                <input type="hidden" name="{{ $setting }}" value="0">
+                                <input type="checkbox" name="{{ $setting }}" value="1" @checked(old($setting, $exam->{$setting} ?? false)) class="rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+                                {{ $label }}
+                            </label>
+                        @endforeach
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -174,7 +227,7 @@
                     <div class="flex justify-end gap-2 pt-3 border-t border-slate-100">
                         <a href="{{ route('guru.ujian.index') }}" class="px-4 py-2.5 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded-xl transition">Batal</a>
                         <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-6 py-2.5 rounded-xl shadow-xs transition cursor-pointer">
-                            {{ $exam->exists ? 'Simpan Perubahan' : 'Simpan & Publikasikan Ujian' }}
+                            {{ $exam->exists ? 'Simpan & Kelola Soal' : 'Simpan & Kelola Soal' }}
                         </button>
                     </div>
                 </form>

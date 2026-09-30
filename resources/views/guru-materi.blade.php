@@ -34,6 +34,30 @@
             </button>
         </div>
 
+        @if ($isAdmin ?? false)
+            <form method="GET" action="{{ route('admin.materi.index') }}" class="mb-5 grid gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:grid-cols-4">
+                <select name="kelas_id" class="rounded-lg border border-slate-200 px-3 py-2 text-xs">
+                    <option value="0">Semua Kelas</option>
+                    @foreach ($kelasList as $kelas)
+                        <option value="{{ $kelas->id }}" @selected($selectedClassId == $kelas->id)>{{ $kelas->nama_kelas }}</option>
+                    @endforeach
+                </select>
+                <select name="guru_id" class="rounded-lg border border-slate-200 px-3 py-2 text-xs">
+                    <option value="0">Semua Guru</option>
+                    @foreach ($teacherList as $teacher)
+                        <option value="{{ $teacher->id }}" @selected($selectedTeacherId == $teacher->id)>{{ $teacher->name }}</option>
+                    @endforeach
+                </select>
+                <select name="status" class="rounded-lg border border-slate-200 px-3 py-2 text-xs">
+                    <option value="">Semua Status</option>
+                    @foreach (['aktif' => 'Published', 'draft' => 'Draft', 'terkunci' => 'Terkunci'] as $value => $label)
+                        <option value="{{ $value }}" @selected($selectedStatus === $value)>{{ $label }}</option>
+                    @endforeach
+                </select>
+                <button class="rounded-lg bg-blue-700 px-4 py-2 text-xs font-bold text-white">Filter Materi</button>
+            </form>
+        @endif
+
         <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div class="border-b border-slate-200 bg-slate-50/90 px-6 py-5">
                 <h2 class="text-[15px] font-extrabold text-blue-700">Daftar Materi</h2>
@@ -44,6 +68,10 @@
                     <thead>
                         <tr class="bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500">
                             <th class="border border-slate-200 px-4 py-4">Judul Pertemuan / Materi</th>
+                            @if ($isAdmin ?? false)
+                                <th class="border border-slate-200 px-4 py-4">Guru</th>
+                                <th class="border border-slate-200 px-4 py-4">Kelas</th>
+                            @endif
                             <th class="border border-slate-200 px-4 py-4">Status</th>
                             <th class="border border-slate-200 px-4 py-4">Komponen</th>
                             <th class="border border-slate-200 px-4 py-4">Terakhir Update</th>
@@ -53,7 +81,7 @@
                     <tbody>
                         @if ($totalMateri === 0)
                             <tr>
-                                <td colspan="5" class="border border-slate-200 px-4 py-16 text-center text-sm text-slate-400">
+                                <td colspan="{{ ($isAdmin ?? false) ? 7 : 5 }}" class="border border-slate-200 px-4 py-16 text-center text-sm text-slate-400">
                                     Belum ada materi yang dipublikasikan.
                                 </td>
                             </tr>
@@ -69,19 +97,23 @@
                                         <div class="font-bold text-slate-800">{{ $materi->pekan ?? 'Pertemuan ' . ($index + 1) }}</div>
                                         <div class="mt-1 text-xs text-slate-500">{{ $materi->judul ?? 'Materi tanpa judul' }}</div>
                                     </td>
+                                    @if ($isAdmin ?? false)
+                                        <td class="border border-slate-200 px-4 py-4">{{ $materi->kelas?->wali?->name ?? '—' }}</td>
+                                        <td class="border border-slate-200 px-4 py-4">{{ $materi->kelas?->nama_kelas ?? '—' }}</td>
+                                    @endif
                                     <td class="border border-slate-200 px-4 py-4">
-                                        <span class="inline-flex rounded-full px-3 py-1 text-xs font-bold {{ $isPublished ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500' }}">
-                                            {{ $isPublished ? 'Published' : 'Draft' }}
+                                        <span class="inline-flex rounded-full px-3 py-1 text-xs font-bold {{ $isPublished ? 'bg-emerald-100 text-emerald-700' : ($status === 'terkunci' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-500') }}">
+                                            {{ $isPublished ? 'Published' : ($status === 'terkunci' ? 'Terkunci' : 'Draft') }}
                                         </span>
                                     </td>
                                     <td class="border border-slate-200 px-4 py-4">{{ $countKomponen }} Komponen</td>
                                     <td class="border border-slate-200 px-4 py-4">{{ $materi->updated_at?->format('d M Y H:i') ?? '-' }}</td>
                                     <td class="border border-slate-200 px-4 py-4">
                                         <div class="flex items-center justify-center gap-2">
-                                            <button type="button" onclick="openEditModal('{{ $materi->id }}', '{{ addslashes($materi->judul ?? '') }}', '{{ addslashes($materi->pekan ?? '') }}', '{{ addslashes($materi->konten ?? '') }}', '{{ $status }}')" class="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-400 text-white shadow-sm transition hover:bg-amber-500" title="Edit Materi">
+                                            <button type="button" onclick="openEditModal('{{ $materi->id }}', '{{ addslashes($materi->judul ?? '') }}', '{{ addslashes($materi->pekan ?? '') }}', '{{ addslashes($materi->konten ?? '') }}', '{{ $status }}', '{{ $materi->kelas_id }}')" class="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-400 text-white shadow-sm transition hover:bg-amber-500" title="Edit Materi">
                                                 ✎
                                             </button>
-                                            <form action="{{ route('guru.materi.destroy', $materi->id) }}" method="POST" onsubmit="return confirm('Yakin ingin menghapus materi ini?')">
+                                            <form action="{{ route(($isAdmin ?? false) ? 'admin.materi.destroy' : 'guru.materi.destroy', $materi->id) }}" method="POST" onsubmit="return confirm('Yakin ingin menghapus materi ini?')">
                                                 @csrf
                                                 @method('DELETE')
                                                 <button type="submit" title="Hapus Materi" class="flex h-9 w-9 items-center justify-center rounded-lg bg-red-500 text-white shadow-sm transition hover:bg-red-600">
@@ -104,7 +136,7 @@
                 </div>
 
                 <div class="grid gap-6 xl:grid-cols-[minmax(0,1.8fr)_280px]">
-                    <form id="materi-form" action="{{ route('guru.materi.store') }}" method="POST" enctype="multipart/form-data" class="space-y-4 rounded-2xl border border-slate-200 bg-white p-5">
+                    <form id="materi-form" action="{{ route(($isAdmin ?? false) ? 'admin.materi.store' : 'guru.materi.store') }}" method="POST" enctype="multipart/form-data" class="space-y-4 rounded-2xl border border-slate-200 bg-white p-5">
                         @csrf
                         <input type="hidden" id="form_method" name="_method" value="POST">
                         <input type="hidden" id="status-input" name="status" value="aktif">
@@ -202,14 +234,14 @@
             if (methodInput) methodInput.value = 'POST';
             if (statusInput) statusInput.value = 'aktif';
             if (form) {
-                form.action = '{{ route('guru.materi.store') }}';
+                form.action = '{{ route(($isAdmin ?? false) ? 'admin.materi.store' : 'guru.materi.store') }}';
                 form.reset();
                 if (statusInput) statusInput.value = 'aktif';
             }
             updatePreview();
         }
 
-        function openEditModal(id, judul, pekan, konten, status = 'aktif') {
+        function openEditModal(id, judul, pekan, konten, status = 'aktif', kelasId = '') {
             setActiveTab('editor');
             const form = document.getElementById('materi-form');
             const editorTitle = document.getElementById('editor-title');
@@ -224,7 +256,9 @@
             if (submitBtn) submitBtn.innerText = 'Publish';
             if (methodInput) methodInput.value = 'PUT';
             if (statusInput) statusInput.value = status || 'aktif';
-            if (form) form.action = '/guru/materi/' + id;
+            if (form) form.action = '{{ $isAdmin ?? false ? '/admin/materi/' : '/guru/materi/' }}' + id;
+            const classSelect = form?.querySelector('[name="kelas_id"]');
+            if (classSelect) classSelect.value = kelasId;
             if (inputPekan) inputPekan.value = pekan || '';
             if (inputJudul) inputJudul.value = judul || '';
             if (inputKonten) inputKonten.value = konten || '';

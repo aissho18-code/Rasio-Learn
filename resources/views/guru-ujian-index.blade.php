@@ -133,8 +133,8 @@
                         <!-- Header Kartu & Status Lock -->
                         <div>
                             <div class="flex items-start justify-between">
-                                <span class="font-bold px-2.5 py-0.5 rounded-full text-[10px] uppercase {{ $exam->locked ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700' }}">
-                                    {{ $exam->locked ? '🔒 Terkunci' : '✅ Aktif' }}
+                                <span class="font-bold px-2.5 py-0.5 rounded-full text-[10px] uppercase {{ $exam->locked || $exam->status !== 'published' ? 'bg-amber-100 text-amber-800' : 'bg-green-100 text-green-700' }}">
+                                    {{ $exam->locked ? 'Terkunci' : ucfirst($exam->status) }}
                                 </span>
                                 
                                 <!-- Tombol Dropdown Tiga Titik -->
@@ -165,12 +165,13 @@
 
                             <h3 class="font-bold text-gray-800 text-sm mt-3 line-clamp-1">{{ $exam->title }}</h3>
                             <p class="text-xs text-gray-500 mt-1 line-clamp-2 leading-relaxed">{{ $exam->description ?? 'Tidak ada deskripsi.' }}</p>
+                            <p class="mt-2 text-[10px] font-semibold text-blue-700">{{ ['cbt' => 'CBT', 'essay' => 'Esai', 'mixed' => 'Campuran', 'quiz_interactive' => 'Quiz Interaktif'][$exam->exam_model] ?? 'Ujian' }} · {{ $exam->duration_minutes }} menit · KKM {{ $exam->min_score }}</p>
                         </div>
 
                         <!-- Footer Kartu Informasi Kelas & Max Violation -->
                         <div class="border-t border-gray-100 pt-3 flex items-center justify-between text-[11px] text-gray-400 font-medium">
-                            <span>Kelas: {{ $exam->kelas?->nama_kelas ?? 'Semua Kelas' }}</span>
-                            <span>Max Pelanggaran: {{ $exam->max_violations }}</span>
+                            <span>{{ $exam->questions->count() }} dari {{ $exam->question_count }} soal · {{ $exam->kelas?->nama_kelas ?? 'Semua Kelas' }}</span>
+                            <a href="{{ route('guru.ujian.questions.index', $exam->id) }}" class="font-bold text-blue-600 hover:underline">Kelola soal</a>
                         </div>
 
                     </div>
@@ -187,22 +188,54 @@
                     @forelse($submissions as $submission)
                         <details class="px-6 py-4">
                             <summary class="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 text-xs">
-                                <span class="font-bold text-slate-800">{{ $submission->student?->name }} · {{ $submission->exam?->title }}</span>
-                                <span class="text-slate-500">Dikirim {{ $submission->submitted_at?->diffForHumans() }}</span>
+                                <span class="font-bold text-slate-800">{{ $submission->student?->name }} · {{ $submission->exam?->title }} · Percobaan {{ $submission->attempt_number }}</span>
+                                <span class="text-slate-500">
+                                    {{ $submission->graded_at ? 'Nilai ' . $submission->score . '/100 · ' . ($submission->score >= ($submission->exam?->min_score ?? 0) ? 'Lulus' : 'Tidak lulus') : 'Menunggu penilaian esai' }}
+                                    · {{ $submission->correct_count ?? '—' }} benar · {{ $submission->wrong_count ?? '—' }} salah
+                                    · {{ $submission->duration_seconds ? gmdate('H:i:s', $submission->duration_seconds) : 'Waktu —' }}
+                                    · {{ $submission->submitted_at?->diffForHumans() }}
+                                </span>
                             </summary>
-                            <p class="mt-3 whitespace-pre-wrap rounded-lg bg-slate-50 p-4 text-xs leading-5 text-slate-700">{{ $submission->response }}</p>
-                            <form method="POST" action="{{ route('guru.ujian.grade', $submission) }}" class="mt-4 grid gap-3 sm:grid-cols-[120px_1fr_auto] sm:items-end">
+                            <div class="mt-3 space-y-3">
+                                @forelse ($submission->exam?->questions ?? [] as $questionIndex => $question)
+                                    @php $studentAnswer = $submission->answers[$question->id] ?? null; @endphp
+                                    <article class="rounded-lg bg-slate-50 p-4">
+                                        <p class="text-[10px] font-bold text-slate-500">Soal {{ $questionIndex + 1 }} · {{ $question->points }} poin</p>
+                                        <p class="mt-1 whitespace-pre-line text-xs font-semibold text-slate-800">{{ $question->prompt }}</p>
+                                        <p class="mt-2 whitespace-pre-wrap text-xs text-slate-600">Jawaban: {{ is_array($studentAnswer) ? implode(', ', $studentAnswer) : ($studentAnswer ?: 'Tidak dijawab') }}</p>
+                                    </article>
+                                @empty
+                                    <p class="whitespace-pre-wrap rounded-lg bg-slate-50 p-4 text-xs leading-5 text-slate-700">{{ $submission->response }}</p>
+                                @endforelse
+                            </div>
+                            @if ($submission->exam?->questions->isEmpty() || $submission->exam?->questions->contains('type', 'essay'))
+                            <form method="POST" action="{{ route('guru.ujian.grade', $submission) }}" class="mt-4 space-y-3">
                                 @csrf
-                                <div>
-                                    <label for="score-{{ $submission->id }}" class="mb-1 block text-[10px] font-bold text-slate-600">Nilai Final</label>
-                                    <input id="score-{{ $submission->id }}" name="score" type="number" min="0" max="100" required value="{{ old('score', $submission->score) }}" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs">
-                                </div>
+                                @php $essayQuestions = $submission->exam?->questions->where('type', 'essay') ?? collect(); @endphp
+                                @if ($essayQuestions->isNotEmpty())
+                                    <div class="grid gap-3 sm:grid-cols-2">
+                                        @foreach ($essayQuestions as $essayQuestion)
+                                            <div>
+                                                <label for="essay-score-{{ $submission->id }}-{{ $essayQuestion->id }}" class="mb-1 block text-[10px] font-bold text-slate-600">Nilai esai · {{ $essayQuestion->points }} poin maks.</label>
+                                                <input id="essay-score-{{ $submission->id }}-{{ $essayQuestion->id }}" name="essay_scores[{{ $essayQuestion->id }}]" type="number" min="0" max="{{ $essayQuestion->points }}" step="0.01" required value="{{ old('essay_scores.' . $essayQuestion->id, $submission->essay_scores[$essayQuestion->id] ?? '') }}" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs">
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                @else
+                                    <div class="max-w-[160px]">
+                                        <label for="score-{{ $submission->id }}" class="mb-1 block text-[10px] font-bold text-slate-600">Nilai Final</label>
+                                        <input id="score-{{ $submission->id }}" name="score" type="number" min="0" max="100" required value="{{ old('score', $submission->score) }}" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs">
+                                    </div>
+                                @endif
                                 <div>
                                     <label for="feedback-{{ $submission->id }}" class="mb-1 block text-[10px] font-bold text-slate-600">Feedback Guru</label>
                                     <textarea id="feedback-{{ $submission->id }}" name="feedback" rows="2" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs">{{ old('feedback', $submission->feedback) }}</textarea>
                                 </div>
                                 <button type="submit" class="rounded-lg bg-blue-700 px-4 py-2 text-xs font-bold text-white hover:bg-blue-800">Simpan Nilai</button>
                             </form>
+                            @else
+                                <p class="mt-4 text-xs font-semibold text-emerald-700">Nilai soal objektif dihitung otomatis: {{ $submission->score ?? '—' }} / 100.</p>
+                            @endif
                         </details>
                     @empty
                         <p class="px-6 py-8 text-center text-xs text-slate-400">Belum ada pengumpulan ujian.</p>

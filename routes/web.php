@@ -93,6 +93,7 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/ujian', [SiswaExamController::class, 'index'])->name('ujian.index');
             Route::get('/ujian/result/{submission}', [SiswaExamController::class, 'result'])->name('ujian.result');
             Route::get('/ujian/{id}', [SiswaExamController::class, 'show'])->whereNumber('id')->name('ujian.show');
+            Route::post('/ujian/{id}/answers', [SiswaExamController::class, 'saveAnswers'])->whereNumber('id')->name('ujian.answers');
             Route::post('/ujian/{id}/submit', [SiswaExamController::class, 'submit'])->whereNumber('id')->name('ujian.submit');
 
             Route::get('/evaluasi', [SiswaController::class, 'evaluasiIndex'])->name('evaluasi');
@@ -160,6 +161,12 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/ujian/submissions/{submission}/grade', [GuruExamController::class, 'grade'])->name('ujian.grade');
         Route::get('/ujian/create', [GuruExamController::class, 'create'])->name('ujian.create');
         Route::post('/ujian', [GuruExamController::class, 'store'])->name('ujian.store');
+        Route::get('/ujian/{id}/questions', [GuruExamController::class, 'questions'])->whereNumber('id')->name('ujian.questions.index');
+        Route::get('/ujian/{id}/questions/create', [GuruExamController::class, 'createQuestion'])->whereNumber('id')->name('ujian.questions.create');
+        Route::post('/ujian/{id}/questions', [GuruExamController::class, 'storeQuestion'])->whereNumber('id')->name('ujian.questions.store');
+        Route::get('/ujian/{id}/questions/{questionId}/edit', [GuruExamController::class, 'editQuestion'])->whereNumber('id')->whereNumber('questionId')->name('ujian.questions.edit');
+        Route::put('/ujian/{id}/questions/{questionId}', [GuruExamController::class, 'updateQuestion'])->whereNumber('id')->whereNumber('questionId')->name('ujian.questions.update');
+        Route::delete('/ujian/{id}/questions/{questionId}', [GuruExamController::class, 'destroyQuestion'])->whereNumber('id')->whereNumber('questionId')->name('ujian.questions.destroy');
         Route::get('/ujian/{id}/edit', [GuruExamController::class, 'edit'])->whereNumber('id')->name('ujian.edit');
         Route::put('/ujian/{id}', [GuruExamController::class, 'update'])->whereNumber('id')->name('ujian.update');
         Route::delete('/ujian/{id}', [GuruExamController::class, 'destroy'])->whereNumber('id')->name('ujian.destroy');
@@ -247,6 +254,39 @@ Route::middleware(['auth'])->group(function () {
         Route::post('kelas/{kelas}/remove-participant', [KelasManagementController::class, 'removeParticipant'])->name('kelas.remove_participant');
         Route::post('kelas/{kelas}/move-participant', [KelasManagementController::class, 'moveParticipant'])->name('kelas.move_participant');
 
+        // Pembelajaran Admin menggunakan controller/model yang sama dengan Guru.
+        Route::get('/materi', [GuruController::class, 'materiIndex'])->name('materi.index');
+        Route::post('/materi', [GuruController::class, 'materiStore'])->name('materi.store');
+        Route::put('/materi/{id}', [GuruController::class, 'materiUpdate'])->whereNumber('id')->name('materi.update');
+        Route::post('/materi/{id}/toggle-lock', [GuruController::class, 'materiToggleLock'])->whereNumber('id')->name('materi.toggle-lock');
+        Route::post('/materi/{id}/unlock', [GuruController::class, 'unlockMateri'])->whereNumber('id')->name('materi.unlock');
+        Route::delete('/materi/{id}', [GuruController::class, 'materiDestroy'])->whereNumber('id')->name('materi.destroy');
+
+        Route::get('/tugas', [GuruController::class, 'tugasIndex'])->name('tugas.index');
+        Route::get('/tugas/create', [GuruController::class, 'tugasCreate'])->name('tugas.create');
+        Route::post('/tugas', [GuruController::class, 'tugasStore'])->name('tugas.store');
+        Route::get('/tugas/{id}/edit', [GuruController::class, 'tugasEdit'])->whereNumber('id')->name('tugas.edit');
+        Route::put('/tugas/{id}', [GuruController::class, 'tugasUpdate'])->whereNumber('id')->name('tugas.update');
+        Route::delete('/tugas/{id}', [GuruController::class, 'tugasDestroy'])->whereNumber('id')->name('tugas.destroy');
+
+        Route::get('/aktivitas', [GuruAktivitasController::class, 'index'])->name('aktivitas.index');
+        Route::get('/aktivitas/create', [GuruAktivitasController::class, 'create'])->name('aktivitas.create');
+        Route::post('/aktivitas', [GuruAktivitasController::class, 'store'])->name('aktivitas.store');
+        Route::get('/aktivitas/{id}/edit', [GuruAktivitasController::class, 'edit'])->whereNumber('id')->name('aktivitas.edit');
+        Route::put('/aktivitas/{id}', [GuruAktivitasController::class, 'update'])->whereNumber('id')->name('aktivitas.update');
+        Route::delete('/aktivitas/{aktivitas}', [GuruAktivitasController::class, 'destroy'])->name('aktivitas.destroy');
+        Route::get('/aktivitas/{aktivitas}/submissions', [GuruAktivitasController::class, 'submissions'])->name('aktivitas.submissions');
+
+        Route::get('/pengumuman', [GuruPengumumanController::class, 'index'])->name('pengumuman.index');
+        Route::get('/pengumuman/create', [GuruPengumumanController::class, 'create'])->name('pengumuman.create');
+        Route::post('/pengumuman', [GuruPengumumanController::class, 'store'])->name('pengumuman.store');
+        Route::get('/pengumuman/{id}/edit', [GuruPengumumanController::class, 'edit'])->whereNumber('id')->name('pengumuman.edit');
+        Route::put('/pengumuman/{id}', [GuruPengumumanController::class, 'update'])->whereNumber('id')->name('pengumuman.update');
+        Route::delete('/pengumuman/{id}', [GuruPengumumanController::class, 'destroy'])->whereNumber('id')->name('pengumuman.destroy');
+
+        Route::get('/quiz', [AdminExamController::class, 'index'])->name('quiz.index');
+        Route::get('/monitoring', [ActivityMonitoringController::class, 'adminIndex'])->name('monitoring.index');
+
         // Manajemen Ujian Admin (Terintegrasi AdminExamController)
         Route::get('/exams', [AdminExamController::class, 'index'])->name('exams.index');
         Route::get('/exams/create', [AdminExamController::class, 'create'])->name('exams.create');
@@ -255,6 +295,13 @@ Route::middleware(['auth'])->group(function () {
         Route::put('/exams/{id}', [AdminExamController::class, 'update'])->whereNumber('id')->name('exams.update');
         Route::delete('/exams/{id}', [AdminExamController::class, 'destroy'])->whereNumber('id')->name('exams.destroy');
         Route::post('/exams/{id}/toggle-lock', [AdminExamController::class, 'toggleLock'])->whereNumber('id')->name('exams.toggle-lock');
+        Route::get('/exams/{id}/questions', [AdminExamController::class, 'edit'])->whereNumber('id')->name('exams.questions.index');
+        Route::get('/exams/{id}/questions/create', [GuruExamController::class, 'createQuestion'])->whereNumber('id')->name('exams.questions.create');
+        Route::post('/exams/{id}/questions', [GuruExamController::class, 'storeQuestion'])->whereNumber('id')->name('exams.questions.store');
+        Route::get('/exams/{id}/questions/{questionId}/edit', [GuruExamController::class, 'editQuestion'])->whereNumber('id')->whereNumber('questionId')->name('exams.questions.edit');
+        Route::put('/exams/{id}/questions/{questionId}', [GuruExamController::class, 'updateQuestion'])->whereNumber('id')->whereNumber('questionId')->name('exams.questions.update');
+        Route::delete('/exams/{id}/questions/{questionId}', [GuruExamController::class, 'destroyQuestion'])->whereNumber('id')->whereNumber('questionId')->name('exams.questions.destroy');
+        Route::post('/exams/submissions/{submission}/grade', [GuruExamController::class, 'grade'])->name('exams.grade');
         Route::get('/exams/export-logs', [AdminExamController::class, 'exportLogs'])->name('exams.export-logs');
 
         // Anti Kecurangan CBT (Proctoring)

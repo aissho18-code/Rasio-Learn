@@ -14,11 +14,27 @@ class ExamSubmission extends Model
         'score',
         'feedback',
         'graded_at',
+        'attempt_number',
+        'answers',
+        'essay_scores',
+        'earned_points',
+        'correct_count',
+        'wrong_count',
+        'started_at',
+        'completed_at',
+        'duration_seconds',
+        'auto_submitted',
     ];
 
     protected $casts = [
         'submitted_at' => 'datetime',
         'graded_at' => 'datetime',
+        'started_at' => 'datetime',
+        'completed_at' => 'datetime',
+        'answers' => 'array',
+        'essay_scores' => 'array',
+        'earned_points' => 'decimal:2',
+        'auto_submitted' => 'boolean',
     ];
 
     public function exam()

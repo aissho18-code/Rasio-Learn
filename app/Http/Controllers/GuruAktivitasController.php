@@ -17,23 +17,39 @@ class GuruAktivitasController extends Controller
     public function index()
     {
         $guruId = Auth::id();
+        $isAdmin = Auth::user()->role === 'admin';
+        $kelasIds = Kelas::where('wali_kelas_id', $guruId)->pluck('id');
+        $kelasList = $isAdmin ? Kelas::with('wali')->orderBy('nama_kelas')->get() : Kelas::whereIn('id', $kelasIds)->with('wali')->orderBy('nama_kelas')->get();
+        $teacherList = $isAdmin ? User::forRoles('guru')->orderBy('name')->get() : collect();
+        $selectedClassId = request()->integer('kelas_id');
+        $selectedTeacherId = request()->integer('guru_id');
+        $selectedStatus = request('status');
+
         $aktivitas = Aktivitas::with(['kelas', 'blocks', 'submissions'])
-            ->where('guru_id', $guruId)
+            ->when(!$isAdmin, fn ($query) => $query->where('guru_id', $guruId))
+            ->when($isAdmin && $selectedClassId > 0, fn ($query) => $query->where('kelas_id', $selectedClassId))
+            ->when($isAdmin && $selectedTeacherId > 0, fn ($query) => $query->where('guru_id', $selectedTeacherId))
+            ->when($isAdmin && in_array($selectedStatus, ['draft', 'published'], true), fn ($query) => $query->where('status', $selectedStatus))
             ->latest()
             ->get();
 
-        return view('guru-aktivitas-index', compact('aktivitas'));
+        $routePrefix = $isAdmin ? 'admin' : 'guru';
+
+        return view('guru-aktivitas-index', compact('aktivitas', 'isAdmin', 'routePrefix', 'kelasList', 'teacherList', 'selectedClassId', 'selectedTeacherId', 'selectedStatus'));
     }
 
     public function create()
     {
-        $kelasList = Kelas::where('wali_kelas_id', Auth::id())->orderBy('nama_kelas')->get();
+        $isAdmin = Auth::user()->role === 'admin';
+        $kelasList = $isAdmin ? Kelas::orderBy('nama_kelas')->get() : Kelas::where('wali_kelas_id', Auth::id())->orderBy('nama_kelas')->get();
+        $routePrefix = $isAdmin ? 'admin' : 'guru';
         $aktivitas = new Aktivitas();
-        return view('guru-aktivitas-create', compact('kelasList', 'aktivitas'));
+        return view('guru-aktivitas-create', compact('kelasList', 'aktivitas', 'isAdmin', 'routePrefix'));
     }
 
     public function store(Request $r, LearningNotificationService $notifications)
     {
+        $isAdmin = $r->user()->role === 'admin';
         $r->validate([
             'judul' => 'required|string|max:255',
             'tujuan' => 'nullable|string',
@@ -41,16 +57,18 @@ class GuruAktivitasController extends Controller
             'pertanyaan' => 'nullable|string',
             'respons_type' => 'nullable|in:file,text,both,interaktif',
             'lkpd' => 'nullable|file|mimes:pdf,doc,docx,png,jpg,jpeg|max:10240',
-            'kelas_id' => 'required|exists:kelas,id',
+            'kelas_id' => [$isAdmin ? 'nullable' : 'required', 'exists:kelas,id'],
             'status' => 'nullable|in:draft,published',
             'blocks' => 'nullable|array',
         ]);
 
-        abort_unless(
-            Kelas::whereKey($r->kelas_id)->where('wali_kelas_id', Auth::id())->exists(),
-            403,
-            'Aktivitas hanya dapat ditujukan ke kelas yang Anda ampu.'
-        );
+        if (!$isAdmin) {
+            abort_unless(
+                Kelas::whereKey($r->kelas_id)->where('wali_kelas_id', Auth::id())->exists(),
+                403,
+                'Aktivitas hanya dapat ditujukan ke kelas yang Anda ampu.'
+            );
+        }
 
         $aktivitas = DB::transaction(function () use ($r) {
             $data = $r->only(['judul', 'tujuan', 'petunjuk', 'pertanyaan', 'respons_type', 'kelas_id']);
@@ -86,7 +104,7 @@ class GuruAktivitasController extends Controller
         });
 
         // 3. Kirim Notifikasi ke Siswa jika Status = Published
-        if ($aktivitas->status === 'published') {
+        if ($aktivitas->status === 'published' && $aktivitas->kelas_id) {
             $notification = new LearningNotification(
                 type: 'activity',
                 title: 'Aktivitas & LKPD Baru',
@@ -96,37 +114,60 @@ class GuruAktivitasController extends Controller
             );
 
             $notifications->notifyStudentsInClass((int) $aktivitas->kelas_id, $notification);
+        } elseif ($aktivitas->status === 'published') {
+            $notifications->notifyAllStudents(new LearningNotification(
+                type: 'activity',
+                title: 'Aktivitas & LKPD Baru',
+                message: 'Aktivitas baru tersedia: ' . $aktivitas->judul,
+                url: route('siswa.aktivitas.show', $aktivitas),
+                eventKey: 'activity.published:' . $aktivitas->id . ':' . $aktivitas->published_at->timestamp
+            ));
         }
 
-        return redirect()->route('guru.aktivitas.index')->with('status', 'Aktivitas berhasil disimpan.');
+        $route = $isAdmin ? 'admin.aktivitas.index' : 'guru.aktivitas.index';
+
+        return redirect()->route($route)->with('status', 'Aktivitas berhasil disimpan.');
     }
 
     public function edit($id)
     {
-        $aktivitas = Aktivitas::with('blocks')->where('guru_id', Auth::id())->findOrFail($id);
-        $kelasList = Kelas::where('wali_kelas_id', Auth::id())->orderBy('nama_kelas')->get();
+        $isAdmin = Auth::user()->role === 'admin';
+        $aktivitasQuery = Aktivitas::with('blocks');
+        if (!$isAdmin) {
+            $aktivitasQuery->where('guru_id', Auth::id());
+        }
+        $aktivitas = $aktivitasQuery->findOrFail($id);
+        $kelasList = $isAdmin ? Kelas::orderBy('nama_kelas')->get() : Kelas::where('wali_kelas_id', Auth::id())->orderBy('nama_kelas')->get();
+        $routePrefix = $isAdmin ? 'admin' : 'guru';
 
-        return view('guru-aktivitas-create', compact('aktivitas', 'kelasList'));
+        return view('guru-aktivitas-create', compact('aktivitas', 'kelasList', 'isAdmin', 'routePrefix'));
     }
 
     public function update(Request $r, $id, LearningNotificationService $notifications)
     {
-        $aktivitas = Aktivitas::where('guru_id', Auth::id())->findOrFail($id);
+        $isAdmin = $r->user()->role === 'admin';
+        $aktivitasQuery = Aktivitas::query();
+        if (!$isAdmin) {
+            $aktivitasQuery->where('guru_id', Auth::id());
+        }
+        $aktivitas = $aktivitasQuery->findOrFail($id);
 
         $r->validate([
             'judul' => 'required|string|max:255',
             'tujuan' => 'nullable|string',
             'petunjuk' => 'nullable|string',
-            'kelas_id' => 'required|exists:kelas,id',
+            'kelas_id' => [$isAdmin ? 'nullable' : 'required', 'exists:kelas,id'],
             'status' => 'nullable|in:draft,published',
             'blocks' => 'nullable|array',
         ]);
 
-        abort_unless(
-            Kelas::whereKey($r->kelas_id)->where('wali_kelas_id', Auth::id())->exists(),
-            403,
-            'Aktivitas hanya dapat ditujukan ke kelas yang Anda ampu.'
-        );
+        if (!$isAdmin) {
+            abort_unless(
+                Kelas::whereKey($r->kelas_id)->where('wali_kelas_id', Auth::id())->exists(),
+                403,
+                'Aktivitas hanya dapat ditujukan ke kelas yang Anda ampu.'
+            );
+        }
 
         $wasPublished = $aktivitas->status === 'published';
 
@@ -163,7 +204,7 @@ class GuruAktivitasController extends Controller
         });
 
         $aktivitas->refresh();
-        if ($aktivitas->status === 'published' && !$wasPublished) {
+        if ($aktivitas->status === 'published' && !$wasPublished && $aktivitas->kelas_id) {
             $notifications->notifyStudentsInClass((int) $aktivitas->kelas_id, new LearningNotification(
                 type: 'activity',
                 title: 'Aktivitas & LKPD Baru',
@@ -173,12 +214,24 @@ class GuruAktivitasController extends Controller
             ));
         }
 
-        return redirect()->route('guru.aktivitas.index')->with('status', 'Aktivitas berhasil diperbarui.');
+        if ($aktivitas->status === 'published' && !$wasPublished && !$aktivitas->kelas_id) {
+            $notifications->notifyAllStudents(new LearningNotification(
+                type: 'activity',
+                title: 'Aktivitas & LKPD Baru',
+                message: 'Aktivitas baru tersedia: ' . $aktivitas->judul,
+                url: route('siswa.aktivitas.show', $aktivitas),
+                eventKey: 'activity.published:' . $aktivitas->id . ':' . $aktivitas->published_at->timestamp
+            ));
+        }
+
+        $route = $isAdmin ? 'admin.aktivitas.index' : 'guru.aktivitas.index';
+
+        return redirect()->route($route)->with('status', 'Aktivitas berhasil diperbarui.');
     }
 
     public function destroy(Aktivitas $aktivitas)
     {
-        if ($aktivitas->guru_id !== Auth::id()) {
+        if (Auth::user()->role !== 'admin' && $aktivitas->guru_id !== Auth::id()) {
             abort(403);
         }
 
@@ -192,7 +245,7 @@ class GuruAktivitasController extends Controller
 
     public function downloadLkpd(Aktivitas $aktivitas)
     {
-        abort_unless((int) $aktivitas->guru_id === (int) Auth::id(), 403);
+        abort_unless(Auth::user()->role === 'admin' || (int) $aktivitas->guru_id === (int) Auth::id(), 403);
 
         if (!$aktivitas->lkpd_path || !Storage::disk('public')->exists($aktivitas->lkpd_path)) {
             abort(404, 'File LKPD tidak ditemukan.');
@@ -202,7 +255,7 @@ class GuruAktivitasController extends Controller
 
     public function submissions(Aktivitas $aktivitas)
     {
-        if ($aktivitas->guru_id !== Auth::id()) {
+        if (Auth::user()->role !== 'admin' && $aktivitas->guru_id !== Auth::id()) {
             abort(403);
         }
 

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>Dashboard Admin - Manajemen Pengguna - Ratio Learn</title>
+    <title>Dashboard Admin - Ratio Learn</title>
 
     <!-- Google Font: Poppins -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -24,70 +24,7 @@
     <!-- SIDEBAR ADMIN -->
     <!-- Sidebar Navigation Admin -->
     <aside class="w-64 bg-[#0B132A] text-white flex flex-col justify-between p-4 min-h-screen select-none shrink-0">
-        <div>
-            <!-- Header / Logo App -->
-            <div class="flex items-center gap-3 px-3 py-4 mb-6">
-                <div class="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center font-bold text-white shadow-md text-sm">
-                    🎓
-                </div>
-                <div>
-                    <div class="font-extrabold text-sm text-white leading-tight">Ratio Learn</div>
-                    <div class="text-[10px] text-blue-400 font-semibold tracking-wider uppercase mt-0.5">Portal Admin</div>
-                </div>
-            </div>
-
-            <!-- Navigasi Menu -->
-            <nav class="space-y-1.5">
-                <!-- Dashboard -->
-                <a href="{{ route('admin.dashboard') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold transition-all duration-200 {{ request()->routeIs('admin.dashboard') ? 'bg-white text-slate-900 shadow-sm font-bold' : 'text-slate-400 hover:bg-slate-800/60 hover:text-white' }}">
-                    <span class="text-base">🏠</span>
-                    <span>Dashboard</span>
-                </a>
-
-                <!-- Kelola Pengguna -->
-                <a href="{{ route('admin.users.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold transition-all duration-200 {{ request()->routeIs('admin.users*') ? 'bg-white text-slate-900 shadow-sm font-bold' : 'text-slate-400 hover:bg-slate-800/60 hover:text-white' }}">
-                    <span class="text-base">👥</span>
-                    <span>Kelola Pengguna</span>
-                </a>
-
-                <!-- Kelola Kelas -->
-                <a href="{{ route('admin.kelas.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold transition-all duration-200 {{ request()->routeIs('admin.kelas*') ? 'bg-white text-slate-900 shadow-sm font-bold' : 'text-slate-400 hover:bg-slate-800/60 hover:text-white' }}">
-                    <span class="text-base">🏫</span>
-                    <span>Kelola Kelas</span>
-                </a>
-
-                <!-- Kelola Ujian / Quiz (BARU) -->
-                <a href="{{ route('admin.exams.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold transition-all duration-200 {{ request()->routeIs('admin.exams*') ? 'bg-white text-slate-900 shadow-sm font-bold' : 'text-slate-400 hover:bg-slate-800/60 hover:text-white' }}">
-                    <span class="text-base">📝</span>
-                    <span>Kelola Ujian</span>
-                </a>
-
-                <!-- Proctoring CBT (BARU) -->
-                <a href="{{ route('admin.proctoring') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold transition-all duration-200 {{ request()->routeIs('admin.proctoring*') ? 'bg-white text-slate-900 shadow-sm font-bold' : 'text-slate-400 hover:bg-slate-800/60 hover:text-white' }}">
-                    <span class="text-base">🛡️</span>
-                    <span>Proctoring CBT</span>
-                </a>
-
-                <!-- Forum Diskusi -->
-                <a href="{{ route('diskusi.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold transition-all duration-200 {{ request()->routeIs('diskusi*') ? 'bg-white text-slate-900 shadow-sm font-bold' : 'text-slate-400 hover:bg-slate-800/60 hover:text-white' }}">
-                    <span class="text-base">💬</span>
-                    <span>Forum Diskusi</span>
-                </a>
-            </nav>
-        </div>
-
-        <!-- Tombol Logout -->
-        <form method="POST" action="{{ route('logout') }}" class="pt-4 border-t border-slate-800/80">
-            @csrf
-            <button type="submit" class="w-full flex items-center gap-3 px-4 py-3 text-xs font-semibold text-slate-400 hover:text-red-400 hover:bg-slate-800/50 rounded-xl transition-all duration-200">
-                <span class="text-base">↪️</span>
-                <span>Logout</span>
-            </button>
-        </form>
-    </aside>
-
-    <!-- MAIN CONTENT AREA -->
-    <main class="flex-1 flex flex-col h-full overflow-y-auto">
+        @include('layouts.sidebar-admin')
         
         <!-- HEADER TOP BAR -->
         <header class="px-8 py-4 flex items-center justify-end gap-5">
@@ -125,8 +62,8 @@
             
             <!-- PAGE TITLE HEADER -->
             <div>
-                <h1 class="text-xl font-extrabold text-slate-900">Dashboard Admin - Manajemen Pengguna</h1>
-                <p class="text-xs text-slate-500 mt-0.5">Kelola akun pengguna, tambah akun guru atau siswa baru, dan atur akses sistem secara terpusat.</p>
+                <h1 class="text-xl font-extrabold text-slate-900">Dashboard Admin</h1>
+                <p class="text-xs text-slate-500 mt-0.5">Kelola pengguna, kelas, pembelajaran, dan aktivitas sistem Ratio Learn secara terpusat.</p>
             </div>
 
             @if(session('success'))

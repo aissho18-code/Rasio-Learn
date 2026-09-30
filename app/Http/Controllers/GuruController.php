@@ -143,9 +143,26 @@ class GuruController extends Controller
     // 1. Menampilkan halaman daftar materi untuk guru (Card Grid Style) + Markdown Render
     public function materiIndex(MarkdownRenderer $markdownRenderer)
     {
+        $isAdmin = Auth::user()->role === 'admin';
         $kelasIds = Kelas::where('wali_kelas_id', Auth::id())->pluck('id');
-        $materiList = Materi::whereIn('kelas_id', $kelasIds)->orderBy('urutan', 'asc')->get();
-        $kelasList = Kelas::whereIn('id', $kelasIds)->orderBy('nama_kelas')->get();
+        $kelasList = $isAdmin
+            ? Kelas::with('wali')->orderBy('nama_kelas')->get()
+            : Kelas::whereIn('id', $kelasIds)->with('wali')->orderBy('nama_kelas')->get();
+        $teacherList = $isAdmin ? User::forRoles('guru')->orderBy('name')->get() : collect();
+        $selectedClassId = request()->integer('kelas_id');
+        $selectedTeacherId = request()->integer('guru_id');
+        $selectedStatus = request('status');
+
+        $materiQuery = Materi::with(['kelas.wali', 'mapel']);
+        if (!$isAdmin) {
+            $materiQuery->whereIn('kelas_id', $kelasIds);
+        } else {
+            $materiQuery
+                ->when($selectedClassId > 0, fn ($query) => $query->where('kelas_id', $selectedClassId))
+                ->when($selectedTeacherId > 0, fn ($query) => $query->whereHas('kelas', fn ($kelasQuery) => $kelasQuery->where('wali_kelas_id', $selectedTeacherId)))
+                ->when(in_array($selectedStatus, ['draft', 'aktif', 'terkunci'], true), fn ($query) => $query->where('status', $selectedStatus));
+        }
+        $materiList = $materiQuery->orderBy('urutan')->get();
 
         // Render Markdown pada kolom konten untuk setiap materi
         $materiList->transform(function ($item) use ($markdownRenderer) {
@@ -154,7 +171,7 @@ class GuruController extends Controller
         });
 
         // Mengirim variabel $materiList ke view 'guru-materi'
-        return view('guru-materi', compact('materiList', 'kelasList'));
+        return view('guru-materi', compact('materiList', 'kelasList', 'isAdmin', 'teacherList', 'selectedClassId', 'selectedTeacherId', 'selectedStatus'));
     }
 
     // 2. Menyimpan materi baru + Unggah File + Pekan
@@ -169,16 +186,18 @@ class GuruController extends Controller
             'file_materi' => 'nullable|file|mimes:pdf,doc,docx,ppt,pptx|max:10240',
         ]);
 
+        if ($request->user()->role !== 'admin') {
+            abort_unless(
+                Kelas::whereKey($request->kelas_id)->where('wali_kelas_id', Auth::id())->exists(),
+                403,
+                'Materi hanya dapat diterbitkan untuk kelas yang Anda ampu.'
+            );
+        }
+
         $filePath = null;
         if ($request->hasFile('file_materi')) {
             $filePath = $request->file('file_materi')->store('materi_files', 'public');
         }
-
-        abort_unless(
-            Kelas::whereKey($request->kelas_id)->where('wali_kelas_id', Auth::id())->exists(),
-            403,
-            'Materi hanya dapat diterbitkan untuk kelas yang Anda ampu.'
-        );
 
         $mapel = MataPelajaran::firstOrCreate(['nama_mapel' => 'Matematika']);
         $nextUrutan = Materi::where('mapel_id', $mapel->id)->where('kelas_id', $request->kelas_id)->count() + 1;
@@ -204,7 +223,9 @@ class GuruController extends Controller
             ));
         }
 
-        return redirect()->route('guru.materi.index')->with('success', 'Modul materi baru berhasil dipublikasikan!');
+        $route = $request->user()->role === 'admin' ? 'admin.materi.index' : 'guru.materi.index';
+
+        return redirect()->route($route)->with('success', 'Modul materi berhasil disimpan.');
     }
 
     // 3. Memperbarui Materi (Edit)
@@ -219,7 +240,11 @@ class GuruController extends Controller
         ]);
 
         $kelasIds = Kelas::where('wali_kelas_id', Auth::id())->pluck('id');
-        $materi = Materi::whereIn('kelas_id', $kelasIds)->findOrFail($id);
+        $materiQuery = Materi::query();
+        if ($request->user()->role !== 'admin') {
+            $materiQuery->whereIn('kelas_id', $kelasIds);
+        }
+        $materi = $materiQuery->findOrFail($id);
         $wasActive = $materi->status === 'aktif';
 
         if ($request->hasFile('file_materi')) {
@@ -246,18 +271,22 @@ class GuruController extends Controller
             ));
         }
 
-        return redirect()->route('guru.materi.index')->with('success', 'Modul materi berhasil diperbarui!');
+        $route = $request->user()->role === 'admin' ? 'admin.materi.index' : 'guru.materi.index';
+
+        return redirect()->route($route)->with('success', 'Modul materi berhasil diperbarui!');
     }
 
     // 4. Mengubah Status Lock / Unlock Materi
     public function materiToggleLock(Request $request, $id, LearningNotificationService $notifications)
     {
         $materi = Materi::findOrFail($id);
-        abort_unless(
-            Kelas::whereKey($materi->kelas_id)->where('wali_kelas_id', Auth::id())->exists(),
-            403,
-            'Anda tidak mengampu kelas materi ini.'
-        );
+        if ($request->user()->role !== 'admin') {
+            abort_unless(
+                Kelas::whereKey($materi->kelas_id)->where('wali_kelas_id', Auth::id())->exists(),
+                403,
+                'Anda tidak mengampu kelas materi ini.'
+            );
+        }
         $newStatus = $request->input('status', $materi->status === 'aktif' ? 'terkunci' : 'aktif');
 
         if (! in_array($newStatus, ['aktif', 'terkunci'], true)) {
@@ -282,18 +311,22 @@ class GuruController extends Controller
             ? 'Materi berhasil dibuka (Unlocked) untuk siswa!'
             : 'Materi berhasil dikunci (Locked).';
 
-        return redirect()->route('guru.materi.index')->with('success', $pesan);
+        $route = $request->user()->role === 'admin' ? 'admin.materi.index' : 'guru.materi.index';
+
+        return redirect()->route($route)->with('success', $pesan);
     }
 
     // 5. Menghapus materi
     public function materiDestroy($id)
     {
         $materi = Materi::findOrFail($id);
-        abort_unless(
-            Kelas::whereKey($materi->kelas_id)->where('wali_kelas_id', Auth::id())->exists(),
-            403,
-            'Anda tidak mengampu kelas materi ini.'
-        );
+        if (Auth::user()->role !== 'admin') {
+            abort_unless(
+                Kelas::whereKey($materi->kelas_id)->where('wali_kelas_id', Auth::id())->exists(),
+                403,
+                'Anda tidak mengampu kelas materi ini.'
+            );
+        }
 
         if ($materi->file_path && Storage::disk('public')->exists($materi->file_path)) {
             Storage::disk('public')->delete($materi->file_path);
@@ -301,15 +334,19 @@ class GuruController extends Controller
 
         $materi->delete();
 
-        return redirect()->route('guru.materi.index')->with('success', 'Modul materi beserta dokumen berhasil dihapus.');
+        $route = Auth::user()->role === 'admin' ? 'admin.materi.index' : 'guru.materi.index';
+
+        return redirect()->route($route)->with('success', 'Modul materi beserta dokumen berhasil dihapus.');
     }
 
     // 6. Fungsi untuk membuka (unlock) materi siswa berikutnya
     public function unlockMateri(Request $request, $id)
     {
-        $progress = MateriProgress::whereKey($id)
-            ->whereHas('materi.kelas', fn ($query) => $query->where('wali_kelas_id', Auth::id()))
-            ->firstOrFail();
+        $progressQuery = MateriProgress::whereKey($id);
+        if ($request->user()->role !== 'admin') {
+            $progressQuery->whereHas('materi.kelas', fn ($query) => $query->where('wali_kelas_id', Auth::id()));
+        }
+        $progress = $progressQuery->firstOrFail();
         $progress->update([
             'status' => 'unlocked',
             'unlocked_by' => auth()->id(),
@@ -326,21 +363,43 @@ class GuruController extends Controller
     // 1. Menampilkan Dashboard Daftar Tugas Guru (Grid Card View)
     public function tugasIndex()
     {
+        $isAdmin = Auth::user()->role === 'admin';
         $kelasIds = Kelas::where('wali_kelas_id', Auth::id())->pluck('id');
-        $tugasList = Tugas::whereHas('materi', fn ($query) => $query->whereIn('kelas_id', $kelasIds))
-            ->orderBy('created_at', 'desc')
-            ->get();
+        $kelasList = $isAdmin ? Kelas::with('wali')->orderBy('nama_kelas')->get() : Kelas::whereIn('id', $kelasIds)->with('wali')->orderBy('nama_kelas')->get();
+        $teacherList = $isAdmin ? User::forRoles('guru')->orderBy('name')->get() : collect();
+        $selectedClassId = request()->integer('kelas_id');
+        $selectedTeacherId = request()->integer('guru_id');
+        $selectedStatus = request('status');
+        $query = Tugas::with(['materi.kelas.wali']);
+
+        if (!$isAdmin) {
+            $query->whereHas('materi', fn ($materiQuery) => $materiQuery->whereIn('kelas_id', $kelasIds));
+        } else {
+            $query
+                ->when($selectedClassId > 0, fn ($tugasQuery) => $tugasQuery->whereHas('materi', fn ($materiQuery) => $materiQuery->where('kelas_id', $selectedClassId)))
+                ->when($selectedTeacherId > 0, fn ($tugasQuery) => $tugasQuery->whereHas('materi.kelas', fn ($kelasQuery) => $kelasQuery->where('wali_kelas_id', $selectedTeacherId)))
+                ->when(in_array($selectedStatus, ['aktif', 'terkunci'], true), fn ($tugasQuery) => $tugasQuery->where('status', $selectedStatus));
+        }
+
+        $tugasList = $query->latest()->get();
         $tugases = $tugasList;
-        return view('guru-tugas-index', compact('tugasList', 'tugases'));
+        $routePrefix = $isAdmin ? 'admin' : 'guru';
+
+        return view('guru-tugas-index', compact('tugasList', 'tugases', 'isAdmin', 'routePrefix', 'kelasList', 'teacherList', 'selectedClassId', 'selectedTeacherId', 'selectedStatus'));
     }
 
     // 2. Menampilkan Form Buat Tugas Baru
     public function tugasCreate()
     {
+        $isAdmin = Auth::user()->role === 'admin';
         $kelasIds = Kelas::where('wali_kelas_id', Auth::id())->pluck('id');
-        $materiList = Materi::whereIn('kelas_id', $kelasIds)->orderBy('judul')->get();
+        $materiList = Materi::with(['kelas.wali'])
+            ->when(!$isAdmin, fn ($query) => $query->whereIn('kelas_id', $kelasIds))
+            ->orderBy('judul')
+            ->get();
+        $routePrefix = $isAdmin ? 'admin' : 'guru';
 
-        return view('guru-tugas-form', compact('materiList'));
+        return view('guru-tugas-form', compact('materiList', 'isAdmin', 'routePrefix'));
     }
 
     // 3. Menyimpan Tugas Baru (Otomatis Mengisi materi_id)
@@ -353,10 +412,15 @@ class GuruController extends Controller
             'tenggat_waktu' => 'required',
             'deskripsi' => 'nullable|string',
             'file_tugas' => 'nullable|file|mimes:pdf,doc,docx,ppt,pptx,jpg,jpeg,png,zip,rar|max:10240',
+            'status' => 'nullable|in:aktif,terkunci',
         ]);
 
         $kelasIds = Kelas::where('wali_kelas_id', Auth::id())->pluck('id');
-        $materi = Materi::whereIn('kelas_id', $kelasIds)->findOrFail($request->materi_id);
+        $materiQuery = Materi::query();
+        if ($request->user()->role !== 'admin') {
+            $materiQuery->whereIn('kelas_id', $kelasIds);
+        }
+        $materi = $materiQuery->findOrFail($request->materi_id);
 
         $filePath = null;
         if ($request->hasFile('file_tugas')) {
@@ -370,9 +434,10 @@ class GuruController extends Controller
             'tenggat_waktu' => $request->tenggat_waktu,
             'deskripsi' => $request->deskripsi,
             'file_path' => $filePath,
-            'status' => 'aktif',
+            'status' => $request->input('status', 'aktif'),
         ]);
 
+        if ($tugas->status === 'aktif') {
         $notifications->notifyStudentsInClass((int) $materi->kelas_id, new LearningNotification(
             type: 'assignment',
             title: 'Tugas Baru',
@@ -380,22 +445,32 @@ class GuruController extends Controller
             url: route('siswa.tugas.show', $tugas->id),
             eventKey: 'task.published:' . $tugas->id
         ));
+        }
 
-        return redirect()->route('guru.tugas.index')->with('success', 'Paket tugas baru berhasil dipublikasikan!');
+        $route = $request->user()->role === 'admin' ? 'admin.tugas.index' : 'guru.tugas.index';
+
+        return redirect()->route($route)->with('success', 'Paket tugas berhasil disimpan.');
     }
 
     // 4. Menampilkan Form Edit Tugas
     public function tugasEdit($id)
     {
+        $isAdmin = Auth::user()->role === 'admin';
         $kelasIds = Kelas::where('wali_kelas_id', Auth::id())->pluck('id');
-        $tugas = Tugas::whereHas('materi', fn ($query) => $query->whereIn('kelas_id', $kelasIds))
-            ->findOrFail($id);
-        $materiList = Materi::whereIn('kelas_id', $kelasIds)->orderBy('judul')->get();
+        $tugasQuery = Tugas::query();
+        $materiQuery = Materi::with('kelas.wali');
+        if (!$isAdmin) {
+            $tugasQuery->whereHas('materi', fn ($query) => $query->whereIn('kelas_id', $kelasIds));
+            $materiQuery->whereIn('kelas_id', $kelasIds);
+        }
+        $tugas = $tugasQuery->findOrFail($id);
+        $materiList = $materiQuery->orderBy('judul')->get();
+        $routePrefix = $isAdmin ? 'admin' : 'guru';
 
-        return view('guru-tugas-form', compact('tugas', 'materiList'));
+        return view('guru-tugas-form', compact('tugas', 'materiList', 'isAdmin', 'routePrefix'));
     }
 
-    public function tugasUpdate(Request $request, $id)
+    public function tugasUpdate(Request $request, $id, LearningNotificationService $notifications)
     {
         $request->validate([
             'materi_id' => 'required|exists:materi,id',
@@ -404,12 +479,19 @@ class GuruController extends Controller
             'tenggat_waktu' => 'required',
             'deskripsi' => 'nullable|string',
             'file_tugas' => 'nullable|file|mimes:pdf,doc,docx,ppt,pptx,jpg,jpeg,png,zip,rar|max:10240',
+            'status' => 'nullable|in:aktif,terkunci',
         ]);
 
         $kelasIds = Kelas::where('wali_kelas_id', Auth::id())->pluck('id');
-        $tugas = Tugas::whereHas('materi', fn ($query) => $query->whereIn('kelas_id', $kelasIds))
-            ->findOrFail($id);
-        $materi = Materi::whereIn('kelas_id', $kelasIds)->findOrFail($request->materi_id);
+        $tugasQuery = Tugas::query();
+        $materiQuery = Materi::query();
+        if ($request->user()->role !== 'admin') {
+            $tugasQuery->whereHas('materi', fn ($query) => $query->whereIn('kelas_id', $kelasIds));
+            $materiQuery->whereIn('kelas_id', $kelasIds);
+        }
+        $tugas = $tugasQuery->findOrFail($id);
+        $wasActive = $tugas->status === 'aktif';
+        $materi = $materiQuery->findOrFail($request->materi_id);
 
         if ($request->hasFile('file_tugas')) {
             if ($tugas->file_path && Storage::disk('public')->exists($tugas->file_path)) {
@@ -424,23 +506,41 @@ class GuruController extends Controller
             'pekan' => $request->pekan ?? 'Pekan 1',
             'tenggat_waktu' => $request->tenggat_waktu,
             'deskripsi' => $request->deskripsi,
+            'status' => $request->input('status', $tugas->status ?? 'aktif'),
         ]);
 
-        return redirect()->route('guru.tugas.index')->with('success', 'Paket tugas berhasil diperbarui!');
+        if ($tugas->status === 'aktif' && !$wasActive) {
+            $notifications->notifyStudentsInClass((int) $materi->kelas_id, new LearningNotification(
+                type: 'assignment',
+                title: 'Tugas Baru',
+                message: 'Tugas baru tersedia: ' . $tugas->judul,
+                url: route('siswa.tugas.show', $tugas->id),
+                eventKey: 'task.published:' . $tugas->id . ':' . $tugas->updated_at->timestamp
+            ));
+        }
+
+        $route = $request->user()->role === 'admin' ? 'admin.tugas.index' : 'guru.tugas.index';
+
+        return redirect()->route($route)->with('success', 'Paket tugas berhasil diperbarui!');
     }
 
     // 6. Menghapus Tugas
     public function tugasDestroy($id)
     {
         $kelasIds = Kelas::where('wali_kelas_id', Auth::id())->pluck('id');
-        $tugas = Tugas::whereHas('materi', fn ($query) => $query->whereIn('kelas_id', $kelasIds))
-            ->findOrFail($id);
+        $tugasQuery = Tugas::query();
+        if (Auth::user()->role !== 'admin') {
+            $tugasQuery->whereHas('materi', fn ($query) => $query->whereIn('kelas_id', $kelasIds));
+        }
+        $tugas = $tugasQuery->findOrFail($id);
         if ($tugas->file_path && Storage::disk('public')->exists($tugas->file_path)) {
             Storage::disk('public')->delete($tugas->file_path);
         }
         $tugas->delete();
 
-        return redirect()->route('guru.tugas.index')->with('success', 'Paket tugas berhasil dihapus.');
+        $route = Auth::user()->role === 'admin' ? 'admin.tugas.index' : 'guru.tugas.index';
+
+        return redirect()->route($route)->with('success', 'Paket tugas berhasil dihapus.');
     }
 
     // ------------------------------------------------------------------

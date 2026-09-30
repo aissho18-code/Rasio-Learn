@@ -82,6 +82,9 @@
 </head>
 <body class="bg-[#F0F5FE] text-slate-800 h-screen w-screen overflow-hidden flex select-none">
 
+    @if ($isAdmin ?? false)
+        @include('layouts.sidebar-admin')
+    @else
     <!-- SIDEBAR GURU -->
     <aside class="w-64 bg-[#0F1A34] text-white flex flex-col justify-between shrink-0 h-full relative z-20 border-r border-slate-800/50">
         <div class="flex flex-col h-full overflow-y-auto">
@@ -94,7 +97,7 @@
 
             <!-- MENU SIDEBAR GURU -->
             <nav class="px-4 py-6 space-y-1.5 flex-1">
-                <a href="{{ route('dashboard') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs transition {{ request()->routeIs('dashboard') ? 'bg-[#E0EDFF] text-[#2563EB] font-bold shadow-xs' : 'text-slate-300 hover:bg-slate-800/50 hover:text-white font-medium' }}">
+                <a href="{{ route('dashboard') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs transition {{ request()->routeIs('guru.dashboard') || request()->routeIs('dashboard') ? 'bg-[#E0EDFF] text-[#2563EB] font-bold shadow-xs' : 'text-slate-300 hover:bg-slate-800/50 hover:text-white font-medium' }}">
                     <span class="text-base">🏠</span><span>Dashboard</span>
                 </a>
                 
@@ -151,6 +154,7 @@
             </div>
         </div>
     </aside>
+    @endif
 
     <!-- MAIN CONTENT AREA -->
     <main class="flex-1 flex flex-col h-full overflow-y-auto">
@@ -159,13 +163,13 @@
         <header class="px-8 py-4 flex items-center justify-end gap-5">
             <x-notification-bell />
 
-            <div class="flex items-center gap-3 bg-white px-3.5 py-1.5 rounded-full shadow-xs border border-slate-100">
+            <a href="{{ route('profile.show') }}" class="flex items-center gap-3 bg-white px-3.5 py-1.5 rounded-full shadow-xs border border-slate-100 hover:border-blue-300 transition">
                 <div class="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-xs">👤</div>
                 <div class="text-left leading-tight pr-1">
                     <div class="text-xs font-bold text-slate-800">{{ Auth::user()->name ?? 'Guru Pengajar' }}</div>
                     <div class="text-[10px] text-slate-400 font-medium capitalize">{{ Auth::user()->role ?? 'Guru' }}</div>
                 </div>
-            </div>
+            </a>
         </header>
 
         <!-- DASHBOARD CONTAINER -->
@@ -177,7 +181,7 @@
                 <p class="text-xs text-slate-500 mt-0.5">Kelola judul, petunjuk instruksi, berkas acuan, dan atur tenggat pengerjaan tugas (Format 24 Jam WIB).</p>
             </div>
 
-            <form action="{{ isset($tugas) ? route('guru.tugas.update', $tugas->id) : route('guru.tugas.store') }}" method="POST" enctype="multipart/form-data" class="space-y-6">
+            <form action="{{ isset($tugas) ? route($routePrefix . '.tugas.update', $tugas->id) : route($routePrefix . '.tugas.store') }}" method="POST" enctype="multipart/form-data" class="space-y-6">
                 @csrf
                 @if(isset($tugas))
                     @method('PUT')
@@ -204,6 +208,16 @@
                             <p class="mt-1 text-[11px] text-amber-700">Belum ada materi di kelas yang Anda ampu. Buat materi terlebih dahulu.</p>
                         @endif
                     </div>
+
+                    @if ($isAdmin ?? false)
+                        <div>
+                            <label class="block text-xs font-bold text-gray-700 mb-1">Status Publikasi</label>
+                            <select name="status" class="w-full rounded-xl border border-gray-200 bg-gray-50/50 p-3 text-xs">
+                                <option value="aktif" @selected(old('status', $tugas->status ?? 'aktif') === 'aktif')>Aktif</option>
+                                <option value="terkunci" @selected(old('status', $tugas->status ?? 'aktif') === 'terkunci')>Terkunci</option>
+                            </select>
+                        </div>
+                    @endif
 
                     <!-- Petunjuk Pengerjaan Tugas -->
                     <div>

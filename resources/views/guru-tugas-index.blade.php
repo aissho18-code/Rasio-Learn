@@ -24,6 +24,9 @@
 </head>
 <body class="bg-[#F0F5FE] text-slate-800 h-screen w-screen overflow-hidden flex select-none">
 
+    @if ($isAdmin ?? false)
+        @include('layouts.sidebar-admin')
+    @else
     <!-- SIDEBAR GURU -->
     <aside class="w-64 bg-[#0F1A34] text-white flex flex-col justify-between shrink-0 h-full relative z-20 border-r border-slate-800/50">
         <div class="flex flex-col h-full overflow-y-auto">
@@ -36,7 +39,7 @@
 
             <!-- MENU SIDEBAR GURU -->
             <nav class="px-4 py-6 space-y-1.5 flex-1">
-                <a href="{{ route('dashboard') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs transition {{ request()->routeIs('dashboard') ? 'bg-[#E0EDFF] text-[#2563EB] font-bold shadow-xs' : 'text-slate-300 hover:bg-slate-800/50 hover:text-white font-medium' }}">
+                <a href="{{ route('dashboard') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs transition {{ request()->routeIs('guru.dashboard') || request()->routeIs('dashboard') ? 'bg-[#E0EDFF] text-[#2563EB] font-bold shadow-xs' : 'text-slate-300 hover:bg-slate-800/50 hover:text-white font-medium' }}">
                     <span class="text-base">🏠</span><span>Dashboard</span>
                 </a>
                 
@@ -93,6 +96,7 @@
             </div>
         </div>
     </aside>
+    @endif
 
     <!-- MAIN CONTENT AREA -->
     <main class="flex-1 flex flex-col h-full overflow-y-auto">
@@ -101,13 +105,13 @@
         <header class="px-8 py-4 flex items-center justify-end gap-5">
             <x-notification-bell />
 
-            <div class="flex items-center gap-3 bg-white px-3.5 py-1.5 rounded-full shadow-xs border border-slate-100">
+            <a href="{{ route('profile.show') }}" class="flex items-center gap-3 bg-white px-3.5 py-1.5 rounded-full shadow-xs border border-slate-100 hover:border-blue-300 transition">
                 <div class="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-xs">👤</div>
                 <div class="text-left leading-tight pr-1">
                     <div class="text-xs font-bold text-slate-800">{{ Auth::user()->name ?? 'Guru Pengajar' }}</div>
                     <div class="text-[10px] text-slate-400 font-medium capitalize">{{ Auth::user()->role ?? 'Guru' }}</div>
                 </div>
-            </div>
+            </a>
         </header>
 
         <!-- DASHBOARD CONTAINER -->
@@ -119,6 +123,25 @@
                 <p class="text-xs text-slate-500 mt-0.5">Pilih paket tugas yang ingin dikelola atau buat paket tugas baru.</p>
             </div>
 
+            @if ($isAdmin ?? false)
+                <form method="GET" action="{{ route('admin.tugas.index') }}" class="grid gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:grid-cols-4">
+                    <select name="kelas_id" class="rounded-lg border border-slate-200 px-3 py-2 text-xs">
+                        <option value="0">Semua Kelas</option>
+                        @foreach ($kelasList as $kelas)<option value="{{ $kelas->id }}" @selected($selectedClassId == $kelas->id)>{{ $kelas->nama_kelas }}</option>@endforeach
+                    </select>
+                    <select name="guru_id" class="rounded-lg border border-slate-200 px-3 py-2 text-xs">
+                        <option value="0">Semua Guru</option>
+                        @foreach ($teacherList as $teacher)<option value="{{ $teacher->id }}" @selected($selectedTeacherId == $teacher->id)>{{ $teacher->name }}</option>@endforeach
+                    </select>
+                    <select name="status" class="rounded-lg border border-slate-200 px-3 py-2 text-xs">
+                        <option value="">Semua Status</option>
+                        <option value="aktif" @selected($selectedStatus === 'aktif')>Aktif</option>
+                        <option value="terkunci" @selected($selectedStatus === 'terkunci')>Terkunci</option>
+                    </select>
+                    <button class="rounded-lg bg-blue-700 px-4 py-2 text-xs font-bold text-white">Filter Tugas</button>
+                </form>
+            @endif
+
             @if(session('success'))
                 <div class="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl text-xs font-medium shadow-xs">
                     {{ session('success') }}
@@ -128,7 +151,7 @@
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 
                 <!-- KARTU DASHED: BUAT TUGAS BARU -->
-                <a href="{{ route('guru.tugas.create') }}" class="border-2 border-dashed border-blue-200 hover:border-blue-400 bg-white rounded-2xl p-8 flex flex-col items-center justify-center text-center cursor-pointer transition group min-h-[200px]">
+                <a href="{{ route($routePrefix . '.tugas.create') }}" class="border-2 border-dashed border-blue-200 hover:border-blue-400 bg-white rounded-2xl p-8 flex flex-col items-center justify-center text-center cursor-pointer transition group min-h-[200px]">
                     <div class="w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center text-xl font-bold shadow-md group-hover:scale-110 transition mb-3">
                         +
                     </div>
@@ -143,8 +166,8 @@
                         <div>
                             <!-- HEADER KARTU: BADGE AKTIF & DROPDOWN TIGA TITIK (⋮) -->
                             <div class="flex items-center justify-between pb-3">
-                                <span class="bg-blue-50 text-blue-600 font-extrabold text-[10px] px-2.5 py-1 rounded-md uppercase tracking-wider">
-                                    AKTIF
+                                <span class="{{ $t->status === 'terkunci' ? 'bg-amber-50 text-amber-700' : 'bg-blue-50 text-blue-600' }} font-extrabold text-[10px] px-2.5 py-1 rounded-md uppercase tracking-wider">
+                                    {{ $t->status === 'terkunci' ? 'TERKUNCI' : 'AKTIF' }}
                                 </span>
 
                                 <!-- DROPDOWN MENU TIGA TITIK (⋮) -->
@@ -164,10 +187,10 @@
                                          x-transition:leave-end="transform opacity-0 scale-95"
                                          class="absolute right-0 mt-1 w-36 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-20"
                                          style="display: none;">
-                                        <a href="{{ route('guru.tugas.edit', $t->id) }}" class="flex items-center px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 hover:text-blue-600">
+                                        <a href="{{ route($routePrefix . '.tugas.edit', $t->id) }}" class="flex items-center px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 hover:text-blue-600">
                                             ✏️ Edit Tugas
                                         </a>
-                                        <form action="{{ route('guru.tugas.destroy', $t->id) }}" method="POST" onsubmit="return confirm('Yakin hapus tugas ini?')">
+                                        <form action="{{ route($routePrefix . '.tugas.destroy', $t->id) }}" method="POST" onsubmit="return confirm('Yakin hapus tugas ini?')">
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit" class="w-full text-left flex items-center px-4 py-2 text-xs font-semibold text-red-600 hover:bg-red-50">
@@ -189,6 +212,9 @@
                                             <span>📄 Lihat Dokumen Acuan</span>
                                         </a>
                                     </div>
+                                @endif
+                                @if ($isAdmin ?? false)
+                                    <p class="mt-2 text-[10px] text-slate-500">Guru: {{ $t->materi?->kelas?->wali?->name ?? '—' }} · Kelas: {{ $t->materi?->kelas?->nama_kelas ?? '—' }}</p>
                                 @endif
                             </div>
                         </div>

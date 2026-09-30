@@ -34,18 +34,16 @@
         <!-- KONTAINER UTAMA TERKUNCI SEUKURAN LAYAR -->
         <div class="h-screen w-screen flex overflow-hidden bg-[#f4f7fe]">
             
+            @if (auth()->user()->role === 'admin')
+                @include('layouts.sidebar-admin')
+            @else
             <!-- SIDEBAR KIRI (THEME DARK NAVY PERSIS GAMBAR DASHBOARD) -->
             <aside class="w-64 bg-[#0a1128] border-r border-slate-800/80 hidden md:flex flex-col shrink-0 h-full overflow-hidden select-none text-white justify-between">
                 
                 <div class="flex flex-col flex-1 min-h-0">
                     <!-- Logo & Subtitle Portal -->
                     <div class="pt-7 pb-6 px-6 flex flex-col items-center justify-center shrink-0">
-                        <div class="flex items-center gap-2.5">
-                            <div class="bg-blue-600 p-2 rounded-xl text-white font-black text-lg shadow-lg shadow-blue-500/30 flex items-center justify-center">
-                                📐
-                            </div>
-                            <span class="text-lg font-black tracking-wider text-blue-400 uppercase">RATIO LEARN</span>
-                        </div>
+                        <img src="{{ asset('images/design-login.png') }}" alt="Ratio Learn Logo" class="h-10 w-auto object-contain">
                         <span class="text-xs text-slate-400 font-semibold mt-2 tracking-wide">
                             {{ auth()->user()->role === 'guru' ? 'Portal Guru' : 'Portal Siswa' }}
                         </span>
@@ -144,6 +142,7 @@
                 </div>
 
             </aside>
+            @endif
 
             <!-- KONTEN UTAMA DI KANAN -->
             <div class="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-[#f4f7fe]">
