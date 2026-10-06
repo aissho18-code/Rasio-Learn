@@ -32,6 +32,38 @@ class GuruMateriFormTest extends TestCase
         $response->assertSee('Publish', false);
     }
 
+    public function test_guru_can_open_a_dedicated_material_edit_page_with_the_sidebar(): void
+    {
+        $user = User::create([
+            'name' => 'Guru Edit',
+            'email' => 'guru.edit@example.com',
+            'email_verified_at' => now(),
+            'password' => bcrypt('password'),
+            'role' => 'guru',
+        ]);
+        $kelas = Kelas::create([
+            'nama_kelas' => 'Kelas Edit',
+            'wali_kelas_id' => $user->id,
+        ]);
+        $mapel = MataPelajaran::create(['nama_mapel' => 'Matematika']);
+        $materi = Materi::create([
+            'judul' => 'Materi untuk diedit',
+            'pekan' => 'Pertemuan 3',
+            'konten' => 'Konten sebelumnya',
+            'mapel_id' => $mapel->id,
+            'kelas_id' => $kelas->id,
+            'urutan' => 1,
+            'status' => 'aktif',
+        ]);
+
+        $this->actingAs($user)
+            ->get('/guru/materi/' . $materi->id . '/edit')
+            ->assertOk()
+            ->assertSee('Edit Materi')
+            ->assertSee('Materi untuk diedit')
+            ->assertSee('Kelola Materi');
+    }
+
     public function test_guru_can_store_materi_as_draft_action(): void
     {
         $user = User::create([

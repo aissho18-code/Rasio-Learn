@@ -12,6 +12,7 @@ class LkpdSubmission extends Model
         'lkpd_id',
         'siswa_id',
         'jawaban',
+        'hasil_penilaian',
         'nilai',
         'status',
         'submitted_at',
@@ -19,6 +20,7 @@ class LkpdSubmission extends Model
 
     protected $casts = [
         'jawaban' => 'array',
+        'hasil_penilaian' => 'array',
         'submitted_at' => 'datetime',
     ];
 

@@ -44,5 +44,7 @@ class DatabaseSeeder extends Seeder
                 'role'           => 'siswa',
             ]
         );
+
+        $this->call(SiswaAccountsSeeder::class);
     }
 }

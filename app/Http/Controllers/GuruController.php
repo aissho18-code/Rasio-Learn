@@ -90,7 +90,13 @@ class GuruController extends Controller
 
         // 3. Ambil Pengumuman Guru
         $pengumuman = Schema::hasTable('pengumuman')
-            ? Pengumuman::where('guru_id', $guru->id)
+            ? Pengumuman::where(function ($query) use ($guru) {
+                $query->where('guru_id', $guru->id)
+                    ->orWhere(function ($query) {
+                        $query->whereIn('target_audience', ['guru', 'semua'])
+                            ->whereHas('guru', fn ($query) => $query->where('role', 'admin'));
+                    });
+            })
                 ->when($selectedKelasId, function ($query) use ($selectedKelasId) {
                     $query->where(function ($q) use ($selectedKelasId) {
                         $q->whereNull('kelas_id')->orWhere('kelas_id', $selectedKelasId);
@@ -174,6 +180,24 @@ class GuruController extends Controller
         return view('guru-materi', compact('materiList', 'kelasList', 'isAdmin', 'teacherList', 'selectedClassId', 'selectedTeacherId', 'selectedStatus'));
     }
 
+    public function materiEdit($id)
+    {
+        $isAdmin = Auth::user()->role === 'admin';
+        $kelasList = Kelas::query()
+            ->when(!$isAdmin, fn ($query) => $query->where('wali_kelas_id', Auth::id()))
+            ->with('wali')
+            ->orderBy('nama_kelas')
+            ->get();
+
+        $materiQuery = Materi::with(['kelas', 'mapel']);
+        if (!$isAdmin) {
+            $materiQuery->whereIn('kelas_id', $kelasList->modelKeys());
+        }
+        $materi = $materiQuery->findOrFail($id);
+
+        return view('guru-materi-edit', compact('materi', 'kelasList', 'isAdmin'));
+    }
+
     // 2. Menyimpan materi baru + Unggah File + Pekan
     public function materiStore(Request $request, LearningNotificationService $notifications)
     {
@@ -231,7 +255,8 @@ class GuruController extends Controller
     // 3. Memperbarui Materi (Edit)
     public function materiUpdate(Request $request, $id, LearningNotificationService $notifications)
     {
-        $request->validate([
+        $data = $request->validate([
+            'kelas_id' => ['sometimes', 'required', 'exists:kelas,id'],
             'judul' => 'required|string|max:255',
             'pekan' => 'required|string|max:50',
             'konten' => 'nullable|string',
@@ -243,6 +268,9 @@ class GuruController extends Controller
         $materiQuery = Materi::query();
         if ($request->user()->role !== 'admin') {
             $materiQuery->whereIn('kelas_id', $kelasIds);
+            if (isset($data['kelas_id'])) {
+                abort_unless($kelasIds->contains((int) $data['kelas_id']), 403, 'Materi hanya dapat dipindahkan ke kelas yang Anda ampu.');
+            }
         }
         $materi = $materiQuery->findOrFail($id);
         $wasActive = $materi->status === 'aktif';
@@ -254,20 +282,25 @@ class GuruController extends Controller
             $materi->file_path = $request->file('file_materi')->store('materi_files', 'public');
         }
 
-        $materi->update([
+        $classChanged = isset($data['kelas_id']) && (int) $data['kelas_id'] !== (int) $materi->kelas_id;
+        $updates = [
             'judul' => $request->judul,
             'pekan' => $request->pekan,
             'konten' => $request->konten,
             'status' => $request->status ?? $materi->status,
-        ]);
+        ];
+        if (isset($data['kelas_id'])) {
+            $updates['kelas_id'] = $data['kelas_id'];
+        }
+        $materi->update($updates);
 
-        if ($materi->status === 'aktif' && ! $wasActive) {
+        if ($materi->status === 'aktif' && (! $wasActive || $classChanged)) {
             $notifications->notifyStudentsInClass((int) $materi->kelas_id, new LearningNotification(
                 type: 'material',
                 title: 'Materi Baru',
                 message: 'Materi baru tersedia: ' . $materi->judul,
                 url: route('siswa.materi.show', $materi->id),
-                eventKey: 'material.published:' . $materi->id
+                eventKey: 'material.published:' . $materi->id . ':' . $materi->kelas_id . ':' . $materi->updated_at->timestamp
             ));
         }
 

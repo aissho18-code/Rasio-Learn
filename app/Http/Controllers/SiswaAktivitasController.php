@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Aktivitas;
 use App\Models\AktivitasSubmission;
+use App\Models\Lkpd;
 use App\Models\User;
 use App\Notifications\LearningNotification;
 use App\Support\LearningNotificationService;
@@ -52,7 +53,8 @@ class SiswaAktivitasController extends Controller
         ->get()
         ->map(function ($item) {
             return [
-                'id' => $item->id,
+                'id' => 'aktivitas-' . $item->id,
+                'type' => 'aktivitas',
                 'judul' => $item->judul,
                 'tujuan' => $item->tujuan,
                 'guru_name' => optional($item->guru)->name ?? 'Guru',
@@ -61,12 +63,50 @@ class SiswaAktivitasController extends Controller
                 'download_url' => route('siswa.aktivitas.lkpd.download', $item->id),
                 'show_url' => route('siswa.aktivitas.show', $item->id),
                 'created_at_formatted' => $item->created_at->diffForHumans(),
+                'sort_timestamp' => ($item->published_at ?? $item->created_at)->timestamp,
             ];
         });
 
+        $lkpds = Lkpd::query()
+            ->where('kelas_id', $kelasId)
+            ->where('status', 'published')
+            ->with([
+                'guru:id,name',
+                'submissions' => fn ($query) => $query
+                    ->where('siswa_id', $siswa->id)
+                    ->where('status', 'submitted'),
+            ])
+            ->latest()
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'id' => 'lkpd-' . $item->id,
+                    'type' => 'lkpd',
+                    'judul' => $item->judul,
+                    'tujuan' => $item->deskripsi,
+                    'guru_name' => optional($item->guru)->name ?? 'Guru',
+                    'respons_type' => 'LKPD',
+                    'has_lkpd' => !empty($item->modul_path),
+                    'download_url' => $item->modul_path ? Storage::disk('public')->url($item->modul_path) : null,
+                    'show_url' => route('siswa.lkpd.show', $item->id),
+                    'is_submitted' => $item->submissions->isNotEmpty(),
+                    'created_at_formatted' => $item->created_at->diffForHumans(),
+                    'sort_timestamp' => $item->created_at->timestamp,
+                ];
+            });
+
+        $data = $aktivitas->toBase()->concat($lkpds->toBase())
+            ->sortByDesc('sort_timestamp')
+            ->map(function ($item) {
+                unset($item['sort_timestamp']);
+
+                return $item;
+            })
+            ->values();
+
         return response()->json([
             'success' => true,
-            'data' => $aktivitas
+            'data' => $data,
         ]);
     }
 

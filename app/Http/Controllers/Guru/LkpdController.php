@@ -51,6 +51,7 @@ class LkpdController extends Controller
             'questions' => ['required', 'array', 'min:1'],
             'questions.*.pertanyaan' => ['required', 'string'],
             'questions.*.rubrik_jawaban' => ['required', 'string'],
+            'questions.*.pembahasan' => ['nullable', 'string'],
             'questions.*.gambar' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
         ]);
 
@@ -87,6 +88,7 @@ class LkpdController extends Controller
                     'urutan' => $index + 1,
                     'pertanyaan' => $question['pertanyaan'],
                     'rubrik_jawaban' => $question['rubrik_jawaban'],
+                    'pembahasan' => $question['pembahasan'] ?? null,
                     'gambar_path' => $gambarPath,
                 ]);
             }
@@ -132,8 +134,10 @@ class LkpdController extends Controller
             'instruksi' => ['nullable', 'string', 'max:5000'],
             'modul' => ['nullable', 'file', 'mimes:pdf,doc,docx,ppt,pptx', 'max:10240'],
             'questions' => ['required', 'array', 'min:1'],
+            'questions.*.id' => ['nullable', 'integer'],
             'questions.*.pertanyaan' => ['required', 'string'],
             'questions.*.rubrik_jawaban' => ['required', 'string'],
+            'questions.*.pembahasan' => ['nullable', 'string'],
             'questions.*.gambar' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
         ]);
 
@@ -159,25 +163,35 @@ class LkpdController extends Controller
                 'instruksi' => $data['instruksi'] ?? null,
             ]);
 
-            foreach ($lkpd->questions as $oldQuestion) {
-                if ($oldQuestion->gambar_path) {
-                    Storage::disk('public')->delete($oldQuestion->gambar_path);
-                }
-            }
-            $lkpd->questions()->delete();
+            $retainedQuestionIds = [];
+            foreach ($data['questions'] as $index => $questionData) {
+                $question = !empty($questionData['id'])
+                    ? $lkpd->questions()->findOrFail($questionData['id'])
+                    : $lkpd->questions()->make();
 
-            foreach ($data['questions'] as $index => $question) {
-                $gambarPath = null;
                 if ($request->hasFile("questions.$index.gambar")) {
-                    $gambarPath = $request->file("questions.$index.gambar")->store('lkpd/questions', 'public');
+                    if ($question->gambar_path) {
+                        Storage::disk('public')->delete($question->gambar_path);
+                    }
+                    $question->gambar_path = $request->file("questions.$index.gambar")->store('lkpd/questions', 'public');
                 }
 
-                $lkpd->questions()->create([
+                $question->fill([
                     'urutan' => $index + 1,
-                    'pertanyaan' => $question['pertanyaan'],
-                    'rubrik_jawaban' => $question['rubrik_jawaban'],
-                    'gambar_path' => $gambarPath,
+                    'pertanyaan' => $questionData['pertanyaan'],
+                    'rubrik_jawaban' => $questionData['rubrik_jawaban'],
+                    'pembahasan' => $questionData['pembahasan'] ?? null,
                 ]);
+                $lkpd->questions()->save($question);
+                $retainedQuestionIds[] = $question->id;
+            }
+
+            $removedQuestions = $lkpd->questions()->whereNotIn('id', $retainedQuestionIds)->get();
+            foreach ($removedQuestions as $removedQuestion) {
+                if ($removedQuestion->gambar_path) {
+                    Storage::disk('public')->delete($removedQuestion->gambar_path);
+                }
+                $removedQuestion->delete();
             }
         });
 

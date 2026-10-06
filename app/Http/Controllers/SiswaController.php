@@ -84,6 +84,10 @@ class SiswaController extends Controller
     // Menampilkan daftar materi lengkap secara real-time untuk siswa (DIPERBAIKI + Markdown Render)
     public function materiIndex(MarkdownRenderer $markdownRenderer)
     {
+        if (request()->query('type') === 'aktivitas') {
+            return redirect()->route('siswa.aktivitas.index');
+        }
+
         $siswa = Auth::user();
         $siswaId = $siswa->id;
         $kelasId = optional($siswa->siswaProfile)->kelas_id;
@@ -238,14 +242,12 @@ class SiswaController extends Controller
         $hasExistingFile = $existingSub && $existingSub->file_path && Storage::disk('public')->exists($existingSub->file_path);
 
         $rules = [
-            'jawaban' => 'nullable|string',
-            'file_submission' => $hasExistingFile 
-                ? 'nullable|file|mimes:pdf,doc,docx,xls,xlsx,ppt,pptx,jpg,jpeg,png,zip,rar|max:20480'
-                : 'required|file|mimes:pdf,doc,docx,xls,xlsx,ppt,pptx,jpg,jpeg,png,zip,rar|max:20480',
+            'jawaban' => $hasExistingFile ? 'nullable|string' : 'nullable|string|required_without:file_submission',
+            'file_submission' => 'nullable|file|mimes:pdf,doc,docx,xls,xlsx,ppt,pptx,jpg,jpeg,png,zip,rar|max:20480',
         ];
 
         $messages = [
-            'file_submission.required' => 'Wajib mengunggah berkas tugas (PDF/Word/Excel/Gambar) sebelum mengumpulkan!',
+            'jawaban.required_without' => 'Tuliskan jawaban atau unggah lampiran sebelum mengumpulkan tugas.',
             'file_submission.mimes' => 'Format berkas tidak didukung. Gunakan PDF, Word, Excel, Gambar, atau ZIP/RAR.',
             'file_submission.max' => 'Ukuran berkas melebihi batas maksimal 20MB.',
         ];

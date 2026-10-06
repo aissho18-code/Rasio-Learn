@@ -21,6 +21,7 @@ class SiswaPengumumanController extends Controller
         }
 
         $pengumuman = Pengumuman::query()
+            ->whereIn('target_audience', ['siswa', 'semua'])
             ->where(function ($query) use ($kelasId) {
                 $query->whereNull('kelas_id')
                     ->orWhere('kelas_id', $kelasId);
@@ -50,7 +51,8 @@ class SiswaPengumumanController extends Controller
 
         $pengumuman = Pengumuman::findOrFail($id);
 
-        $isAllowed = $pengumuman->kelas_id === null || (int) $pengumuman->kelas_id === (int) $kelasId;
+        $isAllowed = in_array($pengumuman->target_audience, ['siswa', 'semua'], true)
+            && ($pengumuman->kelas_id === null || (int) $pengumuman->kelas_id === (int) $kelasId);
         abort_unless($isAllowed, 403, 'Anda tidak memiliki akses ke pengumuman ini.');
 
         PengumumanRead::updateOrCreate(
@@ -67,6 +69,7 @@ class SiswaPengumumanController extends Controller
         $kelasId = optional($siswa->siswaProfile)->kelas_id;
 
         $pengumumanIds = Pengumuman::query()
+            ->whereIn('target_audience', ['siswa', 'semua'])
             ->where(function ($query) use ($kelasId) {
                 $query->whereNull('kelas_id')
                     ->orWhere('kelas_id', $kelasId);

@@ -41,7 +41,7 @@
                         'short_answer' => 'Isian Singkat',
                         'essay' => 'Esai',
                     ] as $value => $label)
-                        <option value="{{ $value }}" @selected(old('type', $question->type ?? 'multiple_choice') === $value)>{{ $label }}</option>
+                        <option value="{{ $value }}" @selected(old('type', $question->type ?? ($exam->exam_model === 'essay' ? 'essay' : 'multiple_choice')) === $value)>{{ $label }}</option>
                     @endforeach
                 </select>
             </div>

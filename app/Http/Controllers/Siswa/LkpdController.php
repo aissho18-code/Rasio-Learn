@@ -3,12 +3,16 @@
 namespace App\Http\Controllers\Siswa;
 
 use App\Http\Controllers\Controller;
+use App\Exceptions\LkpdAssessmentException;
 use App\Models\Lkpd;
+use App\Models\LkpdQuestion;
 use App\Models\LkpdSubmission;
 use App\Models\User;
 use App\Notifications\LearningNotification;
+use App\Services\LkpdAiAssessmentService;
 use App\Support\LearningNotificationService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class LkpdController extends Controller
 {
@@ -39,8 +43,25 @@ class LkpdController extends Controller
         return view('siswa-lkpd-show', compact('lkpd', 'submission'));
     }
 
-    public function submit(Request $request, Lkpd $lkpd, LearningNotificationService $notifications)
+    public function questionImage(Request $request, Lkpd $lkpd, LkpdQuestion $question)
     {
+        $this->ensureStudentCanAccess($request, $lkpd);
+        abort_unless((int) $question->lkpd_id === (int) $lkpd->id, 404);
+        abort_unless(
+            $question->gambar_path && Storage::disk('public')->exists($question->gambar_path),
+            404,
+            'Gambar soal tidak ditemukan.'
+        );
+
+        return Storage::disk('public')->response($question->gambar_path);
+    }
+
+    public function submit(
+        Request $request,
+        Lkpd $lkpd,
+        LkpdAiAssessmentService $assessmentService,
+        LearningNotificationService $notifications
+    ) {
         $this->ensureStudentCanAccess($request, $lkpd);
 
         $data = $request->validate([
@@ -48,12 +69,34 @@ class LkpdController extends Controller
             'jawaban.*' => ['required', 'string'],
         ]);
 
-        $questionIds = $lkpd->questions()->pluck('id')->map(fn ($id) => (string) $id)->all();
-        abort_if(array_diff(array_keys($data['jawaban']), $questionIds), 422);
+        $questions = $lkpd->questions()->get();
+        $questionIds = $questions->pluck('id')->map(fn ($id) => (string) $id)->all();
+        abort_if($questionIds === [], 422, 'LKPD ini belum memiliki soal untuk dinilai.');
+        $answerIds = array_map('strval', array_keys($data['jawaban']));
+        abort_if(array_diff($answerIds, $questionIds) || array_diff($questionIds, $answerIds), 422);
+
+        try {
+            $hasilPenilaian = $assessmentService->assess($questions->all(), $data['jawaban']);
+        } catch (LkpdAssessmentException $exception) {
+            return back()
+                ->withInput()
+                ->withErrors(['assessment' => $exception->getMessage()]);
+        }
+
+        $nilai = round(
+            collect($hasilPenilaian)->where('is_correct', true)->count() / count($questionIds) * 100,
+            2
+        );
 
         $submission = LkpdSubmission::updateOrCreate(
             ['lkpd_id' => $lkpd->id, 'siswa_id' => $request->user()->id],
-            ['jawaban' => $data['jawaban'], 'status' => 'submitted', 'submitted_at' => now()]
+            [
+                'jawaban' => $data['jawaban'],
+                'hasil_penilaian' => $hasilPenilaian,
+                'nilai' => $nilai,
+                'status' => 'submitted',
+                'submitted_at' => now(),
+            ]
         );
 
         $teacher = User::find($lkpd->guru_id);
@@ -67,7 +110,7 @@ class LkpdController extends Controller
             ));
         }
 
-        return redirect()->route('siswa.lkpd.show', $lkpd)->with('status', 'Jawaban LKPD berhasil dikirim.');
+        return redirect()->route('siswa.aktivitas.index')->with('status', 'Jawaban LKPD berhasil dikirim.');
     }
 
     private function ensureStudentCanAccess(Request $request, Lkpd $lkpd): void

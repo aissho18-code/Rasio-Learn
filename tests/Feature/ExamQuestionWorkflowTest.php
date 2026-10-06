@@ -186,6 +186,103 @@ class ExamQuestionWorkflowTest extends TestCase
         $this->assertSame(['Benar'], $exam->questions()->firstOrFail()->correct_answer);
     }
 
+    public function test_teacher_can_add_and_edit_essay_questions_on_a_cbt_exam(): void
+    {
+        [$teacher, , , $exam] = $this->createExamForStudent();
+
+        $this->actingAs($teacher)
+            ->post(route('guru.ujian.questions.store', $exam->id), [
+                'prompt' => 'Jelaskan alasan jawabanmu.',
+                'type' => 'essay',
+                'points' => 5,
+            ])
+            ->assertRedirect(route('guru.ujian.questions.index', $exam->id));
+
+        $question = $exam->questions()->firstOrFail();
+        $this->assertSame('essay', $question->type);
+        $this->assertNull($question->options);
+        $this->assertNull($question->correct_answer);
+
+        $this->put(route('guru.ujian.questions.update', [$exam->id, $question->id]), [
+            'prompt' => 'Jelaskan alasan dan langkah jawabanmu.',
+            'type' => 'essay',
+            'points' => 7,
+        ])->assertRedirect(route('guru.ujian.questions.index', $exam->id));
+
+        $this->assertDatabaseHas('exam_questions', [
+            'id' => $question->id,
+            'type' => 'essay',
+            'prompt' => 'Jelaskan alasan dan langkah jawabanmu.',
+            'points' => 7,
+        ]);
+    }
+
+    public function test_supported_objective_questions_remain_available_and_unknown_types_are_rejected(): void
+    {
+        [$teacher, , , $exam] = $this->createExamForStudent();
+
+        $this->actingAs($teacher)
+            ->post(route('guru.ujian.questions.store', $exam->id), [
+                'prompt' => 'Berapakah 2 + 2?',
+                'type' => 'multiple_choice',
+                'options' => ['3', '4'],
+                'correct_option' => 1,
+                'points' => 1,
+            ])
+            ->assertRedirect(route('guru.ujian.questions.index', $exam->id));
+
+        $this->assertDatabaseHas('exam_questions', [
+            'exam_id' => $exam->id,
+            'type' => 'multiple_choice',
+            'prompt' => 'Berapakah 2 + 2?',
+        ]);
+
+        $this->post(route('guru.ujian.questions.store', $exam->id), [
+            'prompt' => 'Tipe yang tidak dikenal.',
+            'type' => 'unsupported',
+            'points' => 1,
+        ])->assertSessionHasErrors('type');
+    }
+
+    public function test_essay_exam_still_rejects_objective_questions(): void
+    {
+        [$teacher, , , $exam] = $this->createExamForStudent(['exam_model' => 'essay']);
+
+        $this->actingAs($teacher)
+            ->get(route('guru.ujian.questions.create', $exam->id))
+            ->assertOk()
+            ->assertSee('<option value="essay" selected>', false);
+
+        $this->actingAs($teacher)
+            ->post(route('guru.ujian.questions.store', $exam->id), [
+                'prompt' => 'Berapakah 2 + 2?',
+                'type' => 'multiple_choice',
+                'options' => ['3', '4'],
+                'correct_option' => 1,
+                'points' => 1,
+            ])
+            ->assertStatus(422);
+    }
+
+    public function test_teacher_can_create_an_essay_question_on_an_essay_exam(): void
+    {
+        [$teacher, , , $exam] = $this->createExamForStudent(['exam_model' => 'essay']);
+
+        $this->actingAs($teacher)
+            ->post(route('guru.ujian.questions.store', $exam->id), [
+                'prompt' => 'Jelaskan jawabanmu.',
+                'type' => 'essay',
+                'points' => 5,
+            ])
+            ->assertRedirect(route('guru.ujian.questions.index', $exam->id));
+
+        $this->assertDatabaseHas('exam_questions', [
+            'exam_id' => $exam->id,
+            'type' => 'essay',
+            'prompt' => 'Jelaskan jawabanmu.',
+        ]);
+    }
+
     public function test_timeout_can_finish_a_legacy_essay_without_a_typed_response(): void
     {
         [, $student, , $exam] = $this->createExamForStudent();

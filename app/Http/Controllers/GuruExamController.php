@@ -383,7 +383,6 @@ class GuruExamController extends Controller
 
     private function ensureQuestionFitsModel(Exam $exam, string $type): void
     {
-        abort_if(in_array($exam->exam_model, ['cbt', 'quiz_interactive'], true) && $type === 'essay', 422, 'Model ujian ini hanya menerima soal objektif.');
         abort_if($exam->exam_model === 'essay' && $type !== 'essay', 422, 'Model Esai hanya menerima soal esai.');
     }
 }

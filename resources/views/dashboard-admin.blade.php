@@ -1,64 +1,9 @@
-<!DOCTYPE html>
-<html lang="id" class="h-full">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
+@extends('layouts.admin')
 
-    <title>Dashboard Admin - Ratio Learn</title>
+@section('title', 'Dashboard Admin - Ratio Learn')
 
-    <!-- Google Font: Poppins -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-
-    <style>
-        body { font-family: 'Poppins', sans-serif; -webkit-font-smoothing: antialiased; }
-    </style>
-</head>
-<body class="bg-[#F0F5FE] text-slate-800 h-screen w-screen overflow-hidden flex select-none">
-
-    <!-- SIDEBAR ADMIN -->
-    <!-- Sidebar Navigation Admin -->
-    <aside class="w-64 bg-[#0B132A] text-white flex flex-col justify-between p-4 min-h-screen select-none shrink-0">
-        @include('layouts.sidebar-admin')
-        
-        <!-- HEADER TOP BAR -->
-        <header class="px-8 py-4 flex items-center justify-end gap-5">
-            <x-notification-bell />
-            <a href="{{ route('profile.show') }}" class="flex items-center gap-3 bg-white px-3.5 py-1.5 rounded-full shadow-xs border border-slate-100 hover:border-blue-300 transition">
-                @if(Auth::user()->avatar)
-                    <img src="{{ asset('storage/' . Auth::user()->avatar) }}" alt="Avatar" class="w-8 h-8 rounded-full object-cover">
-                @else
-                    <div class="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-xs">
-                        {{ strtoupper(substr(Auth::user()->name, 0, 1)) }}
-                    </div>
-                @endif
-                <div class="text-left leading-tight pr-1">
-                    <div class="text-xs font-bold text-slate-800">{{ Auth::user()->name }}</div>
-                    <div class="text-[10px] text-slate-400 font-medium capitalize">
-                        @if(Auth::user()->role === 'siswa')
-                            Siswa 
-                            @if(isset($currentUserKelasName) && $currentUserKelasName)
-                                • Kelas {{ $currentUserKelasName }}
-                            @else
-                                • <span class="text-red-500 font-semibold">Belum masuk kelas</span>
-                            @endif
-                        @elseif(Auth::user()->role === 'guru')
-                            Guru
-                        @else
-                            Admin
-                        @endif
-                    </div>
-                </div>
-            </a>
-        </header>
-
-        <!-- DASHBOARD CONTAINER -->
-        <div class="px-8 pb-8 space-y-6 flex-1 max-w-7xl">
+@section('content')
+        <div class="max-w-7xl space-y-6">
             
             <!-- PAGE TITLE HEADER -->
             <div>
@@ -148,7 +93,8 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100 text-gray-700">
-                            @forelse($users ?? [] as $u)
+                            @if(($users ?? collect())->isNotEmpty())
+                                @foreach($users as $u)
                                 <tr class="hover:bg-gray-50/50 transition" data-user-id="{{ $u->id }}">
                                     <td class="py-4 px-6 font-bold text-gray-800 flex items-center space-x-2">
                                         <span class="text-gray-400">👤</span>
@@ -178,20 +124,18 @@
                                         </form>
                                     </td>
                                 </tr>
-                            @empty
+                                @endforeach
+                            @else
                                 <tr>
                                     <td colspan="6" class="py-8 text-center text-gray-400 italic">Belum ada pengguna terdaftar.</td>
                                 </tr>
-                            @endforelse
+                            @endif
                         </tbody>
                     </table>
                 </div>
             </div>
 
         </div>
-    </main>
-
-</body>
 <script>
     const adminMonitoringUrl = @json(route('admin.monitoring.status'));
 
@@ -222,4 +166,4 @@
     refreshAdminMonitoring();
     setInterval(refreshAdminMonitoring, 30000);
 </script>
-</html>
+@endsection

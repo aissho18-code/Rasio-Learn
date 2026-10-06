@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Models\Kelas;
 use App\Models\Exam;
 use App\Models\Aktivitas;
+use App\Models\Lkpd;
+use App\Models\LkpdQuestion;
 use App\Models\Materi;
 use App\Models\MataPelajaran;
 use App\Models\Submission;
@@ -15,6 +17,7 @@ use App\Support\LearningNotificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -85,11 +88,253 @@ class LearningNotificationFlowTest extends TestCase
                     && $groupedMateris->first()->first()->is($targetMaterial);
             });
 
+        $this->get(route('siswa.materi.index', ['type' => 'aktivitas']))
+            ->assertRedirect(route('siswa.aktivitas.index'));
+
+        $this->get(route('siswa.aktivitas.index'))
+            ->assertOk()
+            ->assertViewIs('siswa-aktivitas-index')
+            ->assertSee('bg-[#E0EDFF] text-[#2563EB] font-bold shadow-xs', false);
+
         $this->get(route('siswa.materi.show', $targetMaterial->id))->assertOk();
         $this->get(route('siswa.materi.show', Materi::where('judul', 'Materi Kelas Lain')->value('id')))
             ->assertNotFound();
         $this->get(route('siswa.materi.show', Materi::where('judul', 'Materi Draft')->value('id')))
             ->assertNotFound();
+    }
+
+    public function test_student_can_open_lkpd_detail_and_see_its_questions(): void
+    {
+        Storage::fake('public');
+
+        $teacher = $this->createUser('guru');
+        $kelas = Kelas::create(['nama_kelas' => 'Kelas LKPD']);
+        $student = $this->createStudent($kelas);
+        $gambarPath = 'lkpd/questions/diagram.png';
+        Storage::disk('public')->put($gambarPath, 'image-content');
+        $lkpd = Lkpd::create([
+            'guru_id' => $teacher->id,
+            'kelas_id' => $kelas->id,
+            'judul' => 'LKPD Barisan',
+            'deskripsi' => 'Latihan barisan bilangan.',
+            'instruksi' => 'Kerjakan semua soal.',
+            'status' => 'published',
+        ]);
+        $question = LkpdQuestion::create([
+            'lkpd_id' => $lkpd->id,
+            'urutan' => 1,
+            'pertanyaan' => 'Tentukan suku berikutnya: 2, 4, 6, ...',
+            'gambar_path' => $gambarPath,
+        ]);
+
+        $this->actingAs($student)
+            ->get(route('siswa.lkpd.show', $lkpd))
+            ->assertOk()
+            ->assertSee('LKPD Barisan')
+            ->assertSee('Aktivitas & LKPD', false)
+            ->assertSee('Tentukan suku berikutnya: 2, 4, 6, ...')
+            ->assertSee('src="' . route('siswa.lkpd.question-image', [$lkpd, $question]) . '"', false)
+            ->assertSee('name="jawaban[' . $lkpd->questions()->first()->id . ']"', false)
+            ->assertSee(route('siswa.lkpd.submit', $lkpd), false);
+
+        $this->get(route('siswa.lkpd.question-image', [$lkpd, $question]))
+            ->assertOk()
+            ->assertStreamedContent('image-content');
+    }
+
+    public function test_student_lkpd_submission_returns_to_activities_with_success_message(): void
+    {
+        $teacher = $this->createUser('guru');
+        $kelas = Kelas::create(['nama_kelas' => 'Kelas Submit LKPD']);
+        $student = $this->createStudent($kelas);
+        $lkpd = Lkpd::create([
+            'guru_id' => $teacher->id,
+            'kelas_id' => $kelas->id,
+            'judul' => 'LKPD Submit',
+            'status' => 'published',
+        ]);
+        $question = LkpdQuestion::create([
+            'lkpd_id' => $lkpd->id,
+            'urutan' => 1,
+            'pertanyaan' => 'Jawab pertanyaan ini',
+            'rubrik_jawaban' => 'Jawaban adalah 42',
+            'pembahasan' => 'Gunakan operasi yang dijelaskan pada materi.',
+        ]);
+
+        $this->fakeLkpdAiAssessment([[
+            'question_id' => $question->id,
+            'is_correct' => false,
+            'feedback' => 'Jawaban belum sesuai dengan kunci.',
+        ]]);
+
+        $response = $this->actingAs($student)
+            ->post(route('siswa.lkpd.submit', $lkpd), [
+                'jawaban' => [$question->id => 'Jawaban siswa'],
+            ]);
+
+        $response->assertRedirect(route('siswa.aktivitas.index'));
+        $this->assertDatabaseHas('lkpd_submissions', [
+            'lkpd_id' => $lkpd->id,
+            'siswa_id' => $student->id,
+            'status' => 'submitted',
+            'nilai' => 0,
+        ]);
+
+        $submission = $lkpd->submissions()->firstOrFail();
+        $this->assertSame(false, $submission->hasil_penilaian[(string) $question->id]['is_correct']);
+
+        $this->get(route('siswa.aktivitas.index'))
+            ->assertOk()
+            ->assertSee('Jawaban LKPD berhasil dikirim.')
+            ->assertSee('Aktivitas & LKPD', false);
+
+        $this->get(route('siswa.aktivitas.api'))
+            ->assertOk()
+            ->assertJsonPath('data.0.is_submitted', true);
+
+        $this->get(route('siswa.lkpd.show', $lkpd))
+            ->assertOk()
+            ->assertSee('Jawaban Anda:')
+            ->assertSee('Jawaban siswa')
+            ->assertSee('Perlu diperbaiki')
+            ->assertSee('Jawaban belum sesuai dengan kunci.')
+            ->assertSee('Gunakan operasi yang dijelaskan pada materi.');
+    }
+
+    public function test_teacher_can_update_lkpd_rubric_and_explanation_without_replacing_question(): void
+    {
+        $teacher = $this->createUser('guru');
+        $kelas = Kelas::create([
+            'nama_kelas' => 'Kelas Edit Rubrik LKPD',
+            'wali_kelas_id' => $teacher->id,
+        ]);
+        $lkpd = Lkpd::create([
+            'guru_id' => $teacher->id,
+            'kelas_id' => $kelas->id,
+            'judul' => 'LKPD Rubrik',
+            'deadline' => now()->addDay(),
+            'status' => 'published',
+        ]);
+        $question = LkpdQuestion::create([
+            'lkpd_id' => $lkpd->id,
+            'urutan' => 1,
+            'pertanyaan' => 'Pertanyaan lama',
+            'rubrik_jawaban' => 'Kunci lama',
+            'pembahasan' => 'Pembahasan lama',
+        ]);
+
+        $this->actingAs($teacher)
+            ->put(route('guru.lkpd.update', $lkpd), [
+                'kelas_id' => $kelas->id,
+                'judul' => $lkpd->judul,
+                'deadline' => now()->addDay()->format('Y-m-d H:i:s'),
+                'questions' => [[
+                    'id' => $question->id,
+                    'pertanyaan' => 'Pertanyaan baru',
+                    'rubrik_jawaban' => 'Kunci baru',
+                    'pembahasan' => 'Pembahasan baru',
+                ]],
+            ])
+            ->assertRedirect(route('guru.lkpd.index'));
+
+        $question->refresh();
+        $this->assertSame('Pertanyaan baru', $question->pertanyaan);
+        $this->assertSame('Kunci baru', $question->rubrik_jawaban);
+        $this->assertSame('Pembahasan baru', $question->pembahasan);
+        $this->assertSame(1, $lkpd->questions()->count());
+    }
+
+    public function test_teacher_can_open_lkpd_edit_page(): void
+    {
+        $teacher = $this->createUser('guru');
+        $kelas = Kelas::create([
+            'nama_kelas' => 'Kelas Edit LKPD',
+            'wali_kelas_id' => $teacher->id,
+        ]);
+        $lkpd = Lkpd::create([
+            'guru_id' => $teacher->id,
+            'kelas_id' => $kelas->id,
+            'judul' => 'LKPD untuk Diedit',
+            'status' => 'published',
+        ]);
+
+        $this->actingAs($teacher)
+            ->get(route('guru.lkpd.edit', $lkpd))
+            ->assertOk()
+            ->assertSee('Edit LKPD');
+    }
+
+    public function test_realtime_activity_feed_includes_only_published_lkpds_for_the_students_class(): void
+    {
+        $teacher = $this->createUser('guru');
+        $kelas = Kelas::create(['nama_kelas' => 'Kelas Feed LKPD']);
+        $otherClass = Kelas::create(['nama_kelas' => 'Kelas Feed Lain']);
+        $student = $this->createStudent($kelas);
+
+        Aktivitas::create([
+            'guru_id' => $teacher->id,
+            'kelas_id' => $kelas->id,
+            'judul' => 'Aktivitas API Lama',
+            'status' => 'published',
+        ]);
+        $targetLkpd = Lkpd::create([
+            'guru_id' => $teacher->id,
+            'kelas_id' => $kelas->id,
+            'judul' => 'LKPD API Target',
+            'status' => 'published',
+        ]);
+        Lkpd::create([
+            'guru_id' => $teacher->id,
+            'kelas_id' => $otherClass->id,
+            'judul' => 'LKPD Kelas Lain',
+            'status' => 'published',
+        ]);
+        Lkpd::create([
+            'guru_id' => $teacher->id,
+            'kelas_id' => $kelas->id,
+            'judul' => 'LKPD Draft',
+            'status' => 'draft',
+        ]);
+
+        $this->actingAs($student)
+            ->getJson(route('siswa.aktivitas.api'))
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonFragment([
+                'id' => 'aktivitas-' . Aktivitas::where('judul', 'Aktivitas API Lama')->value('id'),
+                'type' => 'aktivitas',
+                'judul' => 'Aktivitas API Lama',
+            ])
+            ->assertJsonFragment([
+                'id' => 'lkpd-' . $targetLkpd->id,
+                'type' => 'lkpd',
+                'judul' => 'LKPD API Target',
+                'show_url' => route('siswa.lkpd.show', $targetLkpd),
+            ])
+            ->assertJsonMissing(['judul' => 'LKPD Kelas Lain'])
+            ->assertJsonMissing(['judul' => 'LKPD Draft']);
+    }
+
+    public function test_realtime_activity_feed_works_when_student_has_no_legacy_activities(): void
+    {
+        $teacher = $this->createUser('guru');
+        $kelas = Kelas::create(['nama_kelas' => 'Kelas LKPD Tanpa Aktivitas']);
+        $student = $this->createStudent($kelas);
+        $lkpd = Lkpd::create([
+            'guru_id' => $teacher->id,
+            'kelas_id' => $kelas->id,
+            'judul' => 'LKPD Tanpa Aktivitas Lama',
+            'status' => 'published',
+        ]);
+
+        $this->actingAs($student)
+            ->getJson(route('siswa.aktivitas.api'))
+            ->assertOk()
+            ->assertJsonFragment([
+                'id' => 'lkpd-' . $lkpd->id,
+                'type' => 'lkpd',
+                'judul' => 'LKPD Tanpa Aktivitas Lama',
+            ]);
     }
 
     public function test_material_notifications_are_sent_only_when_published_to_its_class(): void
@@ -313,6 +558,7 @@ class LearningNotificationFlowTest extends TestCase
         $targetClass = Kelas::create(['nama_kelas' => 'Kelas Tugas', 'wali_kelas_id' => $teacher->id]);
         $otherClass = Kelas::create(['nama_kelas' => 'Kelas Lain']);
         $student = $this->createStudent($targetClass);
+        $textOnlyStudent = $this->createStudent($targetClass);
         $otherStudent = $this->createStudent($otherClass);
         $mapel = MataPelajaran::create(['nama_mapel' => 'Matematika']);
         $materi = Materi::create([
@@ -336,14 +582,34 @@ class LearningNotificationFlowTest extends TestCase
         $this->assertCount(0, $otherStudent->notifications);
 
         $this->actingAs($student)
+            ->get(route('siswa.tugas.show', $tugas->id))
+            ->assertOk()
+            ->assertSee(route('siswa.tugas.submit', $tugas->id), false)
+            ->assertSee('name="jawaban"', false)
+            ->assertSee('name="file_submission"', false);
+
+        $this->actingAs($student)
             ->post(route('siswa.tugas.submit', $tugas->id), [
                 'jawaban' => 'Jawaban tugas',
                 'file_submission' => UploadedFile::fake()->create('jawaban.pdf', 10, 'application/pdf'),
             ])
             ->assertRedirect(route('siswa.tugas.show', $tugas->id));
 
+        $this->actingAs($textOnlyStudent)
+            ->post(route('siswa.tugas.submit', $tugas->id), [
+                'jawaban' => 'Jawaban tanpa lampiran',
+            ])
+            ->assertRedirect(route('siswa.tugas.show', $tugas->id));
+
+        $this->assertDatabaseHas('submissions', [
+            'siswa_id' => $textOnlyStudent->id,
+            'tugas_id' => $tugas->id,
+            'jawaban' => 'Jawaban tanpa lampiran',
+            'file_path' => null,
+        ]);
+
         $submission = Submission::where('tugas_id', $tugas->id)->where('siswa_id', $student->id)->firstOrFail();
-        $this->assertCount(1, $teacher->notifications);
+        $this->assertCount(2, $teacher->notifications);
 
         $this->actingAs($teacher)
             ->post(route('guru.penilaian.tugas.store', $submission->id), [
@@ -459,6 +725,22 @@ class LearningNotificationFlowTest extends TestCase
         $student->siswaProfile()->create(['kelas_id' => $kelas->id]);
 
         return $student;
+    }
+
+    private function fakeLkpdAiAssessment(array $results): void
+    {
+        config(['services.gemini.api_key' => 'test-key']);
+        Http::fake([
+            'https://generativelanguage.googleapis.com/*' => Http::response([
+                'candidates' => [[
+                    'content' => [
+                        'parts' => [[
+                            'text' => json_encode(['results' => $results]),
+                        ]],
+                    ],
+                ]],
+            ]),
+        ]);
     }
 
     private function createUser(string $role): User

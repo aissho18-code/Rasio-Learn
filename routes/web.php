@@ -106,6 +106,9 @@ Route::middleware(['auth'])->group(function () {
             // LKPD Siswa
             Route::get('/lkpd', [SiswaLkpdController::class, 'index'])->name('lkpd.index');
             Route::get('/lkpd/{lkpd}', [SiswaLkpdController::class, 'show'])->whereNumber('lkpd')->name('lkpd.show');
+            Route::get('/lkpd/{lkpd}/questions/{question}/image', [SiswaLkpdController::class, 'questionImage'])
+                ->whereNumber(['lkpd', 'question'])
+                ->name('lkpd.question-image');
             Route::post('/lkpd/{lkpd}/submit', [SiswaLkpdController::class, 'submit'])->whereNumber('lkpd')->name('lkpd.submit');
         });
 
@@ -146,6 +149,7 @@ Route::middleware(['auth'])->group(function () {
 
         // Materi Guru
         Route::get('/materi', [GuruController::class, 'materiIndex'])->name('materi.index');
+        Route::get('/materi/{id}/edit', [GuruController::class, 'materiEdit'])->whereNumber('id')->name('materi.edit');
         Route::post('/materi', [GuruController::class, 'materiStore'])->name('materi.store');
         Route::put('/materi/{id}', [GuruController::class, 'materiUpdate'])->name('materi.update');
         Route::post('/materi/{id}/toggle-lock', [GuruController::class, 'materiToggleLock'])->name('materi.toggle-lock');
@@ -256,6 +260,7 @@ Route::middleware(['auth'])->group(function () {
 
         // Pembelajaran Admin menggunakan controller/model yang sama dengan Guru.
         Route::get('/materi', [GuruController::class, 'materiIndex'])->name('materi.index');
+        Route::get('/materi/{id}/edit', [GuruController::class, 'materiEdit'])->whereNumber('id')->name('materi.edit');
         Route::post('/materi', [GuruController::class, 'materiStore'])->name('materi.store');
         Route::put('/materi/{id}', [GuruController::class, 'materiUpdate'])->whereNumber('id')->name('materi.update');
         Route::post('/materi/{id}/toggle-lock', [GuruController::class, 'materiToggleLock'])->whereNumber('id')->name('materi.toggle-lock');
@@ -277,12 +282,12 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('/aktivitas/{aktivitas}', [GuruAktivitasController::class, 'destroy'])->name('aktivitas.destroy');
         Route::get('/aktivitas/{aktivitas}/submissions', [GuruAktivitasController::class, 'submissions'])->name('aktivitas.submissions');
 
-        Route::get('/pengumuman', [GuruPengumumanController::class, 'index'])->name('pengumuman.index');
-        Route::get('/pengumuman/create', [GuruPengumumanController::class, 'create'])->name('pengumuman.create');
-        Route::post('/pengumuman', [GuruPengumumanController::class, 'store'])->name('pengumuman.store');
-        Route::get('/pengumuman/{id}/edit', [GuruPengumumanController::class, 'edit'])->whereNumber('id')->name('pengumuman.edit');
-        Route::put('/pengumuman/{id}', [GuruPengumumanController::class, 'update'])->whereNumber('id')->name('pengumuman.update');
-        Route::delete('/pengumuman/{id}', [GuruPengumumanController::class, 'destroy'])->whereNumber('id')->name('pengumuman.destroy');
+        Route::get('/pengumuman', [\App\Http\Controllers\AdminPengumumanController::class, 'index'])->name('pengumuman.index');
+        Route::get('/pengumuman/create', [\App\Http\Controllers\AdminPengumumanController::class, 'create'])->name('pengumuman.create');
+        Route::post('/pengumuman', [\App\Http\Controllers\AdminPengumumanController::class, 'store'])->name('pengumuman.store');
+        Route::get('/pengumuman/{id}/edit', [\App\Http\Controllers\AdminPengumumanController::class, 'edit'])->whereNumber('id')->name('pengumuman.edit');
+        Route::put('/pengumuman/{id}', [\App\Http\Controllers\AdminPengumumanController::class, 'update'])->whereNumber('id')->name('pengumuman.update');
+        Route::delete('/pengumuman/{id}', [\App\Http\Controllers\AdminPengumumanController::class, 'destroy'])->whereNumber('id')->name('pengumuman.destroy');
 
         Route::get('/quiz', [AdminExamController::class, 'index'])->name('quiz.index');
         Route::get('/monitoring', [ActivityMonitoringController::class, 'adminIndex'])->name('monitoring.index');

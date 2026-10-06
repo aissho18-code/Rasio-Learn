@@ -9,18 +9,19 @@
     <style>body { font-family: 'Poppins', sans-serif; }</style>
 </head>
 <body class="bg-[#F0F5FE] text-slate-800 p-6 min-h-screen">
+    @php($routePrefix = ($isAdmin ?? false) ? 'admin' : 'guru')
     <div class="max-w-5xl mx-auto space-y-5">
         <div class="flex items-center justify-between">
             <div>
-                <h1 class="text-xl font-bold text-slate-900">📢 Kelola Pengumuman Kelas</h1>
-                <p class="text-xs text-slate-500 mt-0.5">Daftar informasi yang Anda publikasikan ke siswa.</p>
+                <h1 class="text-xl font-bold text-slate-900">📢 {{ ($isAdmin ?? false) ? 'Kelola Pengumuman' : 'Kelola Pengumuman Kelas' }}</h1>
+                <p class="text-xs text-slate-500 mt-0.5">{{ ($isAdmin ?? false) ? 'Daftar pengumuman dan sasaran penerimanya.' : 'Daftar pengumuman Anda dan informasi dari admin untuk guru.' }}</p>
             </div>
             <div class="flex items-center gap-3">
                 <x-notification-bell />
-                <a href="{{ route('guru.dashboard') }}" class="text-xs font-bold text-slate-600 hover:underline">
+                <a href="{{ route(($isAdmin ?? false) ? 'admin.dashboard' : 'guru.dashboard') }}" class="text-xs font-bold text-slate-600 hover:underline">
                     ← Kembali ke Dashboard
                 </a>
-                <a href="{{ route('guru.pengumuman.create') }}" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-xs transition">
+                <a href="{{ route($routePrefix . '.pengumuman.create') }}" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-xs transition">
                     + Buat Pengumuman
                 </a>
             </div>
@@ -38,9 +39,18 @@
                     <div class="space-y-1 min-w-0 flex-1">
                         <div class="flex items-center gap-2">
                             <span class="text-xs font-bold text-slate-800">{{ $item->judul }}</span>
-                            <span class="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                                {{ $item->kelas->nama_kelas ?? 'Semua Kelas' }}
-                            </span>
+                            @if ($isAdmin ?? false)
+                                <span class="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                    {{ ['guru' => 'Guru saja', 'siswa' => 'Siswa saja', 'semua' => 'Guru dan siswa'][$item->target_audience ?? 'siswa'] ?? 'Siswa saja' }}
+                                </span>
+                            @else
+                                <span class="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                    {{ $item->kelas->nama_kelas ?? 'Semua Kelas' }}
+                                </span>
+                                @if ((int) $item->guru_id !== (int) auth()->id())
+                                    <span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full">Admin</span>
+                                @endif
+                            @endif
                         </div>
                         <p class="text-xs text-slate-600 leading-relaxed">{{ $item->isi }}</p>
                         <span class="text-[10px] text-slate-400 block pt-1">
@@ -48,18 +58,20 @@
                         </span>
                     </div>
 
-                    <div class="flex items-center gap-2 shrink-0">
-                        <a href="{{ route('guru.pengumuman.edit', $item->id) }}" class="text-xs font-bold text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-200 transition">
-                            Edit
-                        </a>
-                        <form method="POST" action="{{ route('guru.pengumuman.destroy', $item->id) }}" onsubmit="return confirm('Apakah Anda yakin ingin menghapus pengumuman ini?')">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit" class="text-xs font-bold text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg border border-red-200 transition cursor-pointer">
-                                Hapus
-                            </button>
-                        </form>
-                    </div>
+                    @if (($isAdmin ?? false) || (int) $item->guru_id === (int) auth()->id())
+                        <div class="flex items-center gap-2 shrink-0">
+                            <a href="{{ route($routePrefix . '.pengumuman.edit', $item->id) }}" class="text-xs font-bold text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-200 transition">
+                                Edit
+                            </a>
+                            <form method="POST" action="{{ route($routePrefix . '.pengumuman.destroy', $item->id) }}" onsubmit="return confirm('Apakah Anda yakin ingin menghapus pengumuman ini?')">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="text-xs font-bold text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg border border-red-200 transition cursor-pointer">
+                                    Hapus
+                                </button>
+                            </form>
+                        </div>
+                    @endif
                 </div>
             @empty
                 <div class="py-8 text-center text-xs text-slate-400 italic">

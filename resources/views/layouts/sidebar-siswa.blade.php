@@ -15,7 +15,7 @@
             </a>
             
             <a href="{{ route('siswa.materi.index', ['type' => 'aktivitas']) }}" 
-               class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs transition {{ request()->routeIs('siswa.materi*') && request('type') == 'aktivitas' ? 'bg-[#E0EDFF] text-[#2563EB] font-bold shadow-xs' : 'text-slate-300 hover:bg-slate-800/50 hover:text-white font-medium' }}">
+               class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs transition {{ (request()->routeIs('siswa.materi*') && request('type') == 'aktivitas') || request()->routeIs('siswa.aktivitas*', 'siswa.lkpd*') ? 'bg-[#E0EDFF] text-[#2563EB] font-bold shadow-xs' : 'text-slate-300 hover:bg-slate-800/50 hover:text-white font-medium' }}">
                 <span class="text-base">🎮</span><span>Aktivitas & LKPD</span>
             </a>
 

@@ -18,13 +18,19 @@ class GuruPengumumanController extends Controller
             ->orderBy('nama_kelas')
             ->get();
 
-        $pengumuman = Pengumuman::with('kelas')
-            ->where('guru_id', $guru->id)
+        $pengumuman = Pengumuman::with(['kelas', 'guru'])
+            ->where(function ($query) use ($guru) {
+                $query->where('guru_id', $guru->id)
+                    ->orWhere(function ($query) {
+                        $query->whereIn('target_audience', ['guru', 'semua'])
+                            ->whereHas('guru', fn ($query) => $query->where('role', 'admin'));
+                    });
+            })
             ->latest('diterbitkan_at')
             ->latest()
             ->get();
 
-        return view('guru-pengumuman-index', compact('pengumuman', 'kelasGuru'));
+        return view('guru-pengumuman-index', compact('pengumuman', 'kelasGuru') + ['isAdmin' => false]);
     }
 
     public function create(Request $request)
@@ -36,6 +42,7 @@ class GuruPengumumanController extends Controller
         return view('guru-pengumuman-form', [
             'pengumuman' => new Pengumuman(),
             'kelasGuru' => $kelasGuru,
+            'isAdmin' => false,
         ]);
     }
 
@@ -54,6 +61,7 @@ class GuruPengumumanController extends Controller
         Pengumuman::create([
             'guru_id' => $guru->id,
             'kelas_id' => $data['kelas_id'] ?? null,
+            'target_audience' => 'siswa',
             'judul' => $data['judul'],
             'isi' => $data['isi'],
             'diterbitkan_at' => now(),
@@ -74,7 +82,7 @@ class GuruPengumumanController extends Controller
             ->orderBy('nama_kelas')
             ->get();
 
-        return view('guru-pengumuman-form', compact('pengumuman', 'kelasGuru'));
+        return view('guru-pengumuman-form', compact('pengumuman', 'kelasGuru') + ['isAdmin' => false]);
     }
 
     public function update(Request $request, $id)
@@ -95,6 +103,7 @@ class GuruPengumumanController extends Controller
         // Update record lama dan perbarui waktu terbit
         $pengumuman->update([
             'kelas_id' => $data['kelas_id'] ?? null,
+            'target_audience' => 'siswa',
             'judul' => $data['judul'],
             'isi' => $data['isi'],
             'diterbitkan_at' => now(),

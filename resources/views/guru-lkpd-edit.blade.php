@@ -1,11 +1,11 @@
-@extends('layouts.guru')
+@extends('layouts.app')
 
 @php
     $title = 'Edit LKPD';$subtitle = 'Edit lembar kerja peserta didik.';
 @endphp
 
 @section('content')
-<div x-data="lkpdBuilder(@js($lkpd->questions->map(fn($q) => ['key' =>$q->id, 'pertanyaan' => $q->pertanyaan, 'rubrik_jawaban' =>$q->rubrik_jawaban])->values()))" class="mx-auto max-w-7xl">
+<div x-data="lkpdBuilder(@js($lkpd->questions->map(fn($q) => ['key' => $q->id, 'id' => $q->id, 'pertanyaan' => $q->pertanyaan, 'rubrik_jawaban' => $q->rubrik_jawaban, 'pembahasan' => $q->pembahasan])->values()))" class="mx-auto max-w-7xl">
     <div class="mb-5 flex items-center justify-between">
         <h1 class="text-2xl font-extrabold text-slate-900">Edit LKPD</h1>
         <a href="{{ route('guru.lkpd.index') }}" class="rounded-xl bg-slate-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-slate-700">
@@ -64,6 +64,7 @@
                     <div class="space-y-5 p-5">
                         <template x-for="(question, index) in questions" :key="question.key">
                             <div class="rounded-2xl border-l-4 border-blue-600 bg-slate-50 p-5 shadow-sm">
+                                <input type="hidden" :name="`questions[${index}][id]`" x-model="question.id">
                                 <div class="mb-4 flex items-center justify-between">
                                     <h3 class="font-bold text-blue-700">Soal No. <span x-text="index + 1"></span></h3>
                                     <button type="button" @click="removeQuestion(index)" x-show="questions.length > 1" class="rounded-lg bg-red-50 px-3 py-2 text-xs font-bold text-red-600">
@@ -79,8 +80,12 @@
                                     <input type="file" :name="`questions[${index}][gambar]`" accept="image/*" class="w-full text-sm">
                                 </div>
                                 <div class="mt-3">
-                                    <label class="mb-2 block text-sm font-bold text-emerald-700">🔑 Kunci Jawaban / Rubrik</label>
-                                    <textarea :name="`questions[${index}][rubrik_jawaban]`" x-model="question.rubrik_jawaban" rows="2" required class="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm"></textarea>
+                                    <label class="mb-2 block text-sm font-bold text-emerald-700">🔑 Kunci Jawaban / Rubrik Penilaian AI <span class="text-red-500">*</span></label>
+                                    <textarea :name="`questions[${index}][rubrik_jawaban]`" x-model="question.rubrik_jawaban" rows="3" required class="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm"></textarea>
+                                </div>
+                                <div class="mt-3">
+                                    <label class="mb-2 block text-sm font-bold text-blue-700">Pembahasan untuk Siswa (Opsional)</label>
+                                    <textarea :name="`questions[${index}][pembahasan]`" x-model="question.pembahasan" rows="3" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm"></textarea>
                                 </div>
                             </div>
                         </template>
@@ -103,9 +108,9 @@
 <script>
 function lkpdBuilder(initialQuestions = null) {
     return {
-        questions: initialQuestions && initialQuestions.length ? initialQuestions : [{ key: Date.now(), pertanyaan: '', rubrik_jawaban: '' }],
+        questions: initialQuestions && initialQuestions.length ? initialQuestions : [{ key: Date.now(), pertanyaan: '', rubrik_jawaban: '', pembahasan: '' }],
         addQuestion() {
-            this.questions.push({ key: Date.now() + Math.random(), pertanyaan: '', rubrik_jawaban: '' });
+            this.questions.push({ key: Date.now() + Math.random(), pertanyaan: '', rubrik_jawaban: '', pembahasan: '' });
         },
         removeQuestion(index) {
             this.questions.splice(index, 1);

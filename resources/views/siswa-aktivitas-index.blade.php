@@ -12,15 +12,12 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
     <script src="https://cdn.tailwindcss.com"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
     <style>
         body { font-family: 'Poppins', sans-serif; -webkit-font-smoothing: antialiased; }
     </style>
 </head>
-<body class="bg-[#F0F5FE] text-slate-800 h-screen w-screen overflow-hidden flex select-none" 
-      x-data="aktivitasRealtime()" 
-      x-init="initPolling()">
+<body class="bg-[#F0F5FE] text-slate-800 h-screen w-screen overflow-hidden flex select-none">
 
     <aside class="w-64 bg-[#0F1A34] text-white flex flex-col justify-between shrink-0 h-full relative z-20 border-r border-slate-800/50">
         <div class="flex flex-col h-full overflow-y-auto">
@@ -38,7 +35,7 @@
                     <div class="flex items-center gap-3">
                         <span class="text-base">📚</span><span>Aktivitas & LKPD</span>
                     </div>
-                    <span class="w-2 h-2 rounded-full bg-blue-500 animate-ping" x-show="isSyncing"></span>
+                    <span id="sync-indicator" class="hidden w-2 h-2 rounded-full bg-blue-500 animate-ping"></span>
                 </a>
 
                 <a href="{{ route('siswa.absensi') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs transition {{ request()->routeIs('siswa.absensi*') ? 'bg-[#E0EDFF] text-[#2563EB] font-bold shadow-xs' : 'text-slate-300 hover:bg-slate-800/50 hover:text-white font-medium' }}">
@@ -91,6 +88,12 @@
         <x-dashboard-header />
 
         <div class="px-8 py-8 space-y-6 flex-1 max-w-7xl">
+            @if(session('status'))
+                <div class="rounded-xl border border-green-200 bg-green-50 px-5 py-3 text-xs font-semibold text-green-700 shadow-xs" role="status">
+                    {{ session('status') }}
+                </div>
+            @endif
+
             <div class="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs flex items-center justify-between">
                 <div>
                     <h1 class="text-lg font-bold text-slate-900 flex items-center gap-2">
@@ -98,86 +101,134 @@
                     </h1>
                     <p class="text-xs text-slate-500 mt-1">Unduh lembar kerja peserta didik (LKPD) dan serahkan jawaban tugas Anda di sini.</p>
                 </div>
-                <button @click="fetchAktivitas()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-3 py-2 rounded-xl transition flex items-center gap-1.5">
-                    <span :class="{'animate-spin': isSyncing}">🔄</span> Sync
+                <button id="sync-activities" type="button" aria-label="Sinkronkan aktivitas dan LKPD" title="Sinkronkan aktivitas dan LKPD" class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:border-blue-200 hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-wait disabled:opacity-60">
+                    <svg id="sync-icon" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M20 7v5h-5" />
+                        <path d="M20 12a8 8 0 1 1-2.34-5.66L20 9" />
+                    </svg>
                 </button>
             </div>
 
-            <div x-show="hasNewActivity" x-transition class="bg-blue-600 text-white p-4 rounded-2xl shadow-md flex items-center justify-between">
+            <div id="new-activity-notice" class="hidden bg-blue-600 text-white p-4 rounded-2xl shadow-md flex items-center justify-between">
                 <div class="flex items-center gap-3">
                     <span class="text-xl">🔔</span>
                     <span class="text-xs font-bold">Guru baru saja menerbitkan Aktivitas/LKPD baru!</span>
                 </div>
-                <button @click="hasNewActivity = false" class="text-xs bg-white text-blue-700 font-bold px-3 py-1.5 rounded-xl">Lihat</button>
+                <button id="dismiss-new-activity" type="button" class="text-xs bg-white text-blue-700 font-bold px-3 py-1.5 rounded-xl">Lihat</button>
             </div>
 
-            <div class="space-y-4">
-                <template x-for="a in listAktivitas" :key="a.id">
-                    <div class="bg-white rounded-2xl border border-gray-100 shadow-xs p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 transition hover:border-blue-200">
-                        <div>
-                            <h3 class="font-bold text-slate-900 text-sm" x-text="a.judul"></h3>
-                            <p class="text-xs text-slate-500 mt-1" x-text="a.tujuan || 'Tidak ada deskripsi tujuan'"></p>
-                            <div class="flex items-center gap-2 mt-2">
-                                <span class="text-[10px] bg-blue-50 text-blue-600 font-bold px-2.5 py-0.5 rounded-full" x-text="'Guru: ' + a.guru_name"></span>
-                                <span class="text-[10px] bg-slate-100 text-slate-600 font-bold px-2.5 py-0.5 rounded-full uppercase" x-text="'Tipe: ' + a.respons_type"></span>
-                                <span class="text-[10px] text-slate-400" x-text="a.created_at_formatted"></span>
-                            </div>
-                        </div>
-                        <div class="flex gap-2 shrink-0">
-                            <template x-if="a.has_lkpd">
-                                <a :href="a.download_url" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-4 py-2.5 rounded-xl transition flex items-center gap-1.5">
-                                    <span>📄</span> Download LKPD
-                                </a>
-                            </template>
-                            <a :href="a.show_url" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-xs transition flex items-center gap-1.5">
-                                <span>✏️</span> Kerjakan Task
-                            </a>
-                        </div>
-                    </div>
-                </template>
-
-                <div x-show="listAktivitas.length === 0" class="bg-white rounded-2xl p-8 text-center text-slate-400 text-xs border border-gray-100">
-                    Belum ada aktivitas yang diterbitkan untuk kelas Anda.
+            <div id="aktivitas-list" class="space-y-4" aria-live="polite">
+                <div id="aktivitas-empty" class="bg-white rounded-2xl p-8 text-center text-slate-400 text-xs border border-gray-100">
+                    Memuat aktivitas dan LKPD...
                 </div>
             </div>
         </div>
     </main>
 
     <script>
-        function aktivitasRealtime() {
-            return {
-                listAktivitas: [],
-                isSyncing: false,
-                hasNewActivity: false,
-                previousCount: 0,
+        document.addEventListener('DOMContentLoaded', () => {
+            const list = document.getElementById('aktivitas-list');
+            const emptyState = document.getElementById('aktivitas-empty');
+            const syncButton = document.getElementById('sync-activities');
+            const syncIcon = document.getElementById('sync-icon');
+            const syncIndicator = document.getElementById('sync-indicator');
+            const newActivityNotice = document.getElementById('new-activity-notice');
+            let previousIds = new Set();
+            let hasLoaded = false;
+            let isSyncing = false;
 
-                initPolling() {
-                    this.fetchAktivitas();
-                    setInterval(() => {
-                        this.fetchAktivitas();
-                    }, 4000);
-                },
+            const makeElement = (tag, className, text) => {
+                const element = document.createElement(tag);
+                element.className = className;
+                if (text !== undefined) element.textContent = text;
+                return element;
+            };
 
-                async fetchAktivitas() {
-                    this.isSyncing = true;
-                    try {
-                        const res = await fetch('{{ route("siswa.aktivitas.api") }}');
-                        const json = await res.json();
-                        if (json.success) {
-                            if (this.previousCount > 0 && json.data.length > this.previousCount) {
-                                this.hasNewActivity = true;
-                            }
-                            this.listAktivitas = json.data;
-                            this.previousCount = json.data.length;
-                        }
-                    } catch (e) {
-                        console.error('Realtime sync error:', e);
-                    } finally {
-                        setTimeout(() => { this.isSyncing = false; }, 500);
-                    }
+            const renderItem = (item) => {
+                const card = makeElement('article', 'bg-white rounded-2xl border border-gray-100 shadow-xs p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 transition hover:border-blue-200');
+                const details = makeElement('div', 'min-w-0');
+                details.append(makeElement('h3', 'font-bold text-slate-900 text-sm', item.judul));
+                details.append(makeElement('p', 'text-xs text-slate-500 mt-1', item.tujuan || 'Tidak ada deskripsi.'));
+
+                const metadata = makeElement('div', 'flex flex-wrap items-center gap-2 mt-2');
+                metadata.append(makeElement('span', 'text-[10px] bg-blue-50 text-blue-600 font-bold px-2.5 py-0.5 rounded-full', 'Guru: ' + item.guru_name));
+                metadata.append(makeElement('span', 'text-[10px] bg-slate-100 text-slate-600 font-bold px-2.5 py-0.5 rounded-full uppercase', item.type === 'lkpd' ? 'LKPD' : 'Tipe: ' + item.respons_type));
+                if (item.type === 'lkpd' && item.is_submitted) {
+                    metadata.append(makeElement('span', 'text-[10px] bg-emerald-100 text-emerald-700 font-bold px-2.5 py-0.5 rounded-full', '✓ Sudah dikerjakan'));
                 }
-            }
-        }
+                metadata.append(makeElement('span', 'text-[10px] text-slate-400', item.created_at_formatted));
+                details.append(metadata);
+                card.append(details);
+
+                const actions = makeElement('div', 'flex flex-wrap gap-2 shrink-0');
+                if (item.has_lkpd && item.download_url) {
+                    const download = makeElement('a', 'bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-4 py-2.5 rounded-xl transition');
+                    download.href = item.download_url;
+                    download.textContent = 'Unduh LKPD';
+                    actions.append(download);
+                }
+
+                const open = makeElement('a', 'bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-xs transition');
+                open.href = item.show_url;
+                open.textContent = item.type === 'lkpd'
+                    ? (item.is_submitted ? 'Lihat / ubah jawaban' : 'Kerjakan LKPD')
+                    : 'Kerjakan Aktivitas';
+                actions.append(open);
+                card.append(actions);
+
+                return card;
+            };
+
+            const fetchAktivitas = async () => {
+                if (isSyncing) return;
+                isSyncing = true;
+                syncButton.disabled = true;
+                syncIcon.classList.add('animate-spin');
+                syncIndicator.classList.remove('hidden');
+
+                try {
+                    const response = await fetch('{{ route("siswa.aktivitas.api") }}', {
+                        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                        cache: 'no-store',
+                    });
+                    if (!response.ok) throw new Error('Gagal memuat aktivitas.');
+
+                    const result = await response.json();
+                    if (!result.success || !Array.isArray(result.data)) throw new Error('Respons aktivitas tidak valid.');
+
+                    const items = result.data;
+                    const currentIds = new Set(items.map((item) => item.id));
+                    if (hasLoaded && items.some((item) => !previousIds.has(item.id))) {
+                        newActivityNotice.classList.remove('hidden');
+                    }
+
+                    list.replaceChildren(...items.map(renderItem));
+                    if (items.length === 0) {
+                        emptyState.textContent = 'Belum ada aktivitas atau LKPD yang diterbitkan untuk kelas Anda.';
+                        list.append(emptyState);
+                    }
+
+                    previousIds = currentIds;
+                    hasLoaded = true;
+                } catch (error) {
+                    console.error('Realtime sync error:', error);
+                    if (!hasLoaded) emptyState.textContent = 'Aktivitas dan LKPD belum dapat dimuat. Coba sinkronkan kembali.';
+                } finally {
+                    isSyncing = false;
+                    syncButton.disabled = false;
+                    syncIcon.classList.remove('animate-spin');
+                    syncIndicator.classList.add('hidden');
+                }
+            };
+
+            syncButton.addEventListener('click', fetchAktivitas);
+            document.getElementById('dismiss-new-activity').addEventListener('click', () => {
+                newActivityNotice.classList.add('hidden');
+            });
+
+            fetchAktivitas();
+            window.setInterval(fetchAktivitas, 4000);
+        });
     </script>
 </body>
 </html>

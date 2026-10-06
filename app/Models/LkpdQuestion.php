@@ -14,6 +14,7 @@ class LkpdQuestion extends Model
         'pertanyaan',
         'gambar_path',
         'rubrik_jawaban',
+        'pembahasan',
     ];
 
     public function lkpd()

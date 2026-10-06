@@ -110,9 +110,10 @@
                                     <td class="border border-slate-200 px-4 py-4">{{ $materi->updated_at?->format('d M Y H:i') ?? '-' }}</td>
                                     <td class="border border-slate-200 px-4 py-4">
                                         <div class="flex items-center justify-center gap-2">
-                                            <button type="button" onclick="openEditModal('{{ $materi->id }}', '{{ addslashes($materi->judul ?? '') }}', '{{ addslashes($materi->pekan ?? '') }}', '{{ addslashes($materi->konten ?? '') }}', '{{ $status }}', '{{ $materi->kelas_id }}')" class="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-400 text-white shadow-sm transition hover:bg-amber-500" title="Edit Materi">
-                                                ✎
-                                            </button>
+                                            <a href="{{ route(($isAdmin ?? false) ? 'admin.materi.edit' : 'guru.materi.edit', $materi->id) }}" class="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500" title="Edit Materi">
+                                                <span aria-hidden="true">✎</span>
+                                                <span>Edit</span>
+                                            </a>
                                             <form action="{{ route(($isAdmin ?? false) ? 'admin.materi.destroy' : 'guru.materi.destroy', $materi->id) }}" method="POST" onsubmit="return confirm('Yakin ingin menghapus materi ini?')">
                                                 @csrf
                                                 @method('DELETE')
@@ -138,7 +139,6 @@
                 <div class="grid gap-6 xl:grid-cols-[minmax(0,1.8fr)_280px]">
                     <form id="materi-form" action="{{ route(($isAdmin ?? false) ? 'admin.materi.store' : 'guru.materi.store') }}" method="POST" enctype="multipart/form-data" class="space-y-4 rounded-2xl border border-slate-200 bg-white p-5">
                         @csrf
-                        <input type="hidden" id="form_method" name="_method" value="POST">
                         <input type="hidden" id="status-input" name="status" value="aktif">
 
                         <div class="grid gap-4 md:grid-cols-2">
@@ -229,39 +229,14 @@
             const methodInput = document.getElementById('form_method');
             const statusInput = document.getElementById('status-input');
 
-            if (title) title.innerText = 'Tambah / Edit Materi — Pertemuan 1';
+            if (title) title.innerText = 'Tambah Materi — Pertemuan 1';
             if (submitBtn) submitBtn.innerText = 'Publish';
-            if (methodInput) methodInput.value = 'POST';
             if (statusInput) statusInput.value = 'aktif';
             if (form) {
                 form.action = '{{ route(($isAdmin ?? false) ? 'admin.materi.store' : 'guru.materi.store') }}';
                 form.reset();
                 if (statusInput) statusInput.value = 'aktif';
             }
-            updatePreview();
-        }
-
-        function openEditModal(id, judul, pekan, konten, status = 'aktif', kelasId = '') {
-            setActiveTab('editor');
-            const form = document.getElementById('materi-form');
-            const editorTitle = document.getElementById('editor-title');
-            const submitBtn = document.getElementById('submit-button');
-            const methodInput = document.getElementById('form_method');
-            const statusInput = document.getElementById('status-input');
-            const inputPekan = document.getElementById('input_pekan');
-            const inputJudul = document.getElementById('input_judul');
-            const inputKonten = document.getElementById('input_konten');
-
-            if (editorTitle) editorTitle.innerText = 'Tambah / Edit Materi — ' + (pekan || 'Pertemuan');
-            if (submitBtn) submitBtn.innerText = 'Publish';
-            if (methodInput) methodInput.value = 'PUT';
-            if (statusInput) statusInput.value = status || 'aktif';
-            if (form) form.action = '{{ $isAdmin ?? false ? '/admin/materi/' : '/guru/materi/' }}' + id;
-            const classSelect = form?.querySelector('[name="kelas_id"]');
-            if (classSelect) classSelect.value = kelasId;
-            if (inputPekan) inputPekan.value = pekan || '';
-            if (inputJudul) inputJudul.value = judul || '';
-            if (inputKonten) inputKonten.value = konten || '';
             updatePreview();
         }
 

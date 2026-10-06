@@ -1,16 +1,9 @@
-<!DOCTYPE html>
-<html lang="id" class="h-full">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ $user->exists ? 'Edit Pengguna' : 'Buat Pengguna' }} - Portal Admin</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>body { font-family: 'Poppins', sans-serif; -webkit-font-smoothing: antialiased; }</style>
-</head>
-<body class="bg-[#F0F5FE] text-slate-800 h-screen w-screen overflow-hidden flex select-none">
-    <main class="flex-1 flex flex-col h-full overflow-y-auto items-center justify-center p-6">
+@extends('layouts.admin')
+
+@section('title', ($user->exists ? 'Edit Pengguna' : 'Buat Pengguna') . ' - Portal Admin')
+
+@section('content')
+    <div class="flex min-h-[calc(100vh-9rem)] items-center justify-center p-6">
         <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 max-w-lg w-full space-y-6">
             <h2 class="text-lg font-extrabold text-gray-900 border-b border-gray-100 pb-3">
                 {{ $user->exists ? '✏️ Edit Pengguna' : '➕ Buat Pengguna Baru' }}
@@ -79,8 +72,6 @@
                 </div>
             </form>
         </div>
-    </main>
-
     <script>
         document.getElementById('roleSelect')?.addEventListener('change', function(){
             const val = this.value;
@@ -88,5 +79,5 @@
             if (val === 'siswa' || val === 'guru') wrapper.style.display = 'block'; else wrapper.style.display = 'none';
         });
     </script>
-</body>
-</html>
+    </div>
+@endsection

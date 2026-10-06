@@ -19,6 +19,60 @@
         body { font-family: 'Poppins', sans-serif; -webkit-font-smoothing: antialiased; }
         [x-cloak] { display: none !important; }
     </style>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const pathname = window.location.pathname;
+            const listRoutes = [
+                /^\/siswa\/aktivitas$/,
+                /^\/siswa\/materi$/,
+                /^\/siswa\/tugas$/,
+                /^\/siswa\/ujian$/,
+                /^\/siswa\/pengumuman$/,
+                /^\/siswa\/evaluasi$/
+            ];
+
+            if (!listRoutes.some((pattern) => pattern.test(pathname))) {
+                return;
+            }
+
+            const currentMain = document.querySelector('main');
+            if (!currentMain) {
+                return;
+            }
+
+            const refreshContent = () => {
+                if (document.visibilityState !== 'visible') {
+                    return;
+                }
+
+                const url = new URL(window.location.href);
+                url.searchParams.set('_poll', '1');
+
+                fetch(url, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'text/html'
+                    }
+                })
+                .then((response) => response.text())
+                .then((html) => {
+                    const parser = new DOMParser();
+                    const nextDocument = parser.parseFromString(html, 'text/html');
+                    const nextMain = nextDocument.querySelector('main');
+
+                    if (nextMain && currentMain) {
+                        currentMain.innerHTML = nextMain.innerHTML;
+                    }
+                })
+                .catch(() => {
+                    // silent fail, keep current page stable
+                });
+            };
+
+            refreshContent();
+            setInterval(refreshContent, 15000);
+        });
+    </script>
 </head>
 <body class="bg-[#F0F5FE] text-slate-800 h-screen w-screen overflow-hidden flex select-none">
 

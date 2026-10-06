@@ -9,9 +9,10 @@
     <style>body { font-family: 'Poppins', sans-serif; }</style>
 </head>
 <body class="bg-[#F0F5FE] text-slate-800 p-6 min-h-screen">
+    @php($routePrefix = ($isAdmin ?? false) ? 'admin' : 'guru')
     <div class="max-w-2xl mx-auto space-y-4">
         <div class="flex items-center justify-between">
-            <a href="{{ route('guru.pengumuman.index') }}" class="inline-block text-xs font-bold text-blue-600 hover:underline">
+            <a href="{{ route($routePrefix . '.pengumuman.index') }}" class="inline-block text-xs font-bold text-blue-600 hover:underline">
                 ← Kembali ke Daftar Pengumuman
             </a>
             <x-notification-bell />
@@ -23,7 +24,11 @@
                     {{ $pengumuman->exists ? 'Edit Pengumuman' : 'Buat Pengumuman Baru' }}
                 </h1>
                 <p class="text-xs text-slate-400 mt-0.5">
-                    {{ $pengumuman->exists ? 'Perubahan akan memperbarui data dan mengirim ulang status pengumuman baru ke siswa.' : 'Pengumuman akan langsung tampil di dashboard siswa target.' }}
+                    @if ($isAdmin ?? false)
+                        Pilih apakah pengumuman ditujukan kepada guru, siswa, atau keduanya.
+                    @else
+                        {{ $pengumuman->exists ? 'Perubahan akan memperbarui data dan mengirim ulang status pengumuman baru ke siswa.' : 'Pengumuman akan langsung tampil di dashboard siswa target.' }}
+                    @endif
                 </p>
             </div>
 
@@ -35,13 +40,23 @@
                 </div>
             @endif
 
-            <form method="POST" action="{{ $pengumuman->exists ? route('guru.pengumuman.update', $pengumuman->id) : route('guru.pengumuman.store') }}" class="space-y-4">
+            <form method="POST" action="{{ $pengumuman->exists ? route($routePrefix . '.pengumuman.update', $pengumuman->id) : route($routePrefix . '.pengumuman.store') }}" class="space-y-4">
                 @csrf
                 @if ($pengumuman->exists)
                     @method('PUT')
                 @endif
 
-                <div>
+                @if ($isAdmin ?? false)
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Sasaran Pengumuman</label>
+                        <select name="target_audience" required class="w-full text-xs font-medium border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-300">
+                            <option value="guru" @selected(old('target_audience', $pengumuman->target_audience ?? 'siswa') === 'guru')>Guru saja</option>
+                            <option value="siswa" @selected(old('target_audience', $pengumuman->target_audience ?? 'siswa') === 'siswa')>Siswa saja</option>
+                            <option value="semua" @selected(old('target_audience', $pengumuman->target_audience ?? 'siswa') === 'semua')>Guru dan siswa</option>
+                        </select>
+                    </div>
+                @else
+                    <div>
                     <label class="block text-xs font-bold text-slate-700 mb-1">Target Kelas</label>
                     <select name="kelas_id" class="w-full text-xs font-medium border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-300">
                         <option value="">Semua Kelas</option>
@@ -51,7 +66,8 @@
                             </option>
                         @endforeach
                     </select>
-                </div>
+                    </div>
+                @endif
 
                 <div>
                     <label class="block text-xs font-bold text-slate-700 mb-1">Judul Pengumuman</label>
@@ -64,7 +80,7 @@
                 </div>
 
                 <div class="flex justify-end gap-2 pt-2">
-                    <a href="{{ route('guru.pengumuman.index') }}" class="px-4 py-2.5 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded-xl transition">
+                    <a href="{{ route($routePrefix . '.pengumuman.index') }}" class="px-4 py-2.5 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded-xl transition">
                         Batal
                     </a>
                     <button type="submit" class="px-5 py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-xs transition cursor-pointer">

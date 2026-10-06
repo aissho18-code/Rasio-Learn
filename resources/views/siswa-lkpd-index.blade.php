@@ -113,8 +113,11 @@
                     </h1>
                     <p class="text-xs text-slate-500 mt-1">Unduh lembar kerja peserta didik (LKPD) dan serahkan jawaban tugas Anda di sini.</p>
                 </div>
-                <button @click="fetchAktivitas()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-3 py-2 rounded-xl transition flex items-center gap-1.5">
-                    <span :class="{'animate-spin': isSyncing}">🔄</span> Sync
+                <button type="button" @click="fetchAktivitas()" :disabled="isSyncing" aria-label="Sinkronkan aktivitas dan LKPD" title="Sinkronkan aktivitas dan LKPD" class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:border-blue-200 hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-wait disabled:opacity-60">
+                    <svg :class="{'animate-spin': isSyncing}" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M20 7v5h-5" />
+                        <path d="M20 12a8 8 0 1 1-2.34-5.66L20 9" />
+                    </svg>
                 </button>
             </div>
 
@@ -133,10 +136,10 @@
                     <div class="bg-white rounded-2xl border border-gray-100 shadow-xs p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 transition hover:border-blue-200">
                         <div>
                             <h3 class="font-bold text-slate-900 text-sm" x-text="a.judul"></h3>
-                            <p class="text-xs text-slate-500 mt-1" x-text="a.tujuan || 'Tidak ada deskripsi tujuan'"></p>
+                            <p class="text-xs text-slate-500 mt-1" x-text="a.tujuan || 'Tidak ada deskripsi.'"></p>
                             <div class="flex items-center gap-2 mt-2">
                                 <span class="text-[10px] bg-blue-50 text-blue-600 font-bold px-2.5 py-0.5 rounded-full" x-text="'Guru: ' + a.guru_name"></span>
-                                <span class="text-[10px] bg-slate-100 text-slate-600 font-bold px-2.5 py-0.5 rounded-full uppercase" x-text="'Tipe: ' + a.respons_type"></span>
+                                <span class="text-[10px] bg-slate-100 text-slate-600 font-bold px-2.5 py-0.5 rounded-full uppercase" x-text="a.type === 'lkpd' ? 'LKPD' : 'Tipe: ' + a.respons_type"></span>
                                 <span class="text-[10px] text-slate-400" x-text="a.created_at_formatted"></span>
                             </div>
                         </div>
@@ -147,7 +150,7 @@
                                 </a>
                             </template>
                             <a :href="a.show_url" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-xs transition flex items-center gap-1.5">
-                                <span>✏️</span> Kerjakan Task
+                                <span x-text="a.type === 'lkpd' ? 'Kerjakan LKPD' : 'Kerjakan Aktivitas'"></span>
                             </a>
                         </div>
                     </div>

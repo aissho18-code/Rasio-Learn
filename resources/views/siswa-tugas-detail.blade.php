@@ -137,20 +137,28 @@
                 </div>
             @endif
 
+            @if($errors->any())
+                <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-xs font-medium shadow-xs">
+                    @foreach($errors->all() as $error)
+                        <p>{{ $error }}</p>
+                    @endforeach
+                </div>
+            @endif
+
             <div class="bg-white rounded-2xl border border-gray-200/80 shadow-sm p-6 space-y-6">
-                <form action="{{ route('siswa.tugas.store', $tugas->id ?? 1) }}" method="POST" enctype="multipart/form-data" class="space-y-5">
+                <form action="{{ route('siswa.tugas.submit', $tugas->id) }}" method="POST" enctype="multipart/form-data" class="space-y-5">
                     @csrf
                     
                     <div class="space-y-4">
                         <div>
                             <label class="block text-xs font-bold text-gray-800 mb-1">Catatan / Jawaban Teks</label>
-                            <textarea name="jawaban_teks" rows="4" placeholder="Tuliskan jawaban atau catatan tugas di sini..." class="w-full text-xs border border-gray-200 rounded-xl p-3 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none">{{ old('jawaban_teks', $submission->jawaban_teks ?? '') }}</textarea>
+                            <textarea name="jawaban" rows="4" placeholder="Tuliskan jawaban atau catatan tugas di sini..." class="w-full text-xs border border-gray-200 rounded-xl p-3 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none">{{ old('jawaban', $submission->jawaban ?? '') }}</textarea>
                         </div>
 
                         <div>
                             <label class="block text-xs font-bold text-gray-800 mb-1">Unggah Lampiran / File (Opsional)</label>
-                            <input type="file" name="file_lampiran" class="w-full text-xs border border-gray-200 rounded-xl p-2.5 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                            <p class="text-[10px] text-gray-400 mt-1">Format yang didukung: PDF, DOCX, JPG, PNG (Maks. 10MB)</p>
+                            <input type="file" name="file_submission" class="w-full text-xs border border-gray-200 rounded-xl p-2.5 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                            <p class="text-[10px] text-gray-400 mt-1">Format yang didukung: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, JPG, PNG, ZIP, RAR (Maks. 20MB)</p>
                         </div>
                     </div>
 

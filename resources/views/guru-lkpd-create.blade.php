@@ -112,8 +112,13 @@
                                 </div>
 
                                 <div>
-                                    <label class="mb-2 block text-sm font-bold text-emerald-700">Kunci Jawaban / Rubrik <span class="text-red-500">*</span></label>
-                                    <textarea :name="`questions[${index}][rubrik_jawaban]`" x-model="question.rubrik_jawaban" rows="3" required placeholder="Masukkan poin jawaban yang benar atau rubric penilaian..." class="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-700 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"></textarea>
+                                    <label class="mb-2 block text-sm font-bold text-emerald-700">Kunci Jawaban / Rubrik Penilaian AI <span class="text-red-500">*</span></label>
+                                    <textarea :name="`questions[${index}][rubrik_jawaban]`" x-model="question.rubrik_jawaban" rows="3" required placeholder="Tuliskan kunci atau kriteria jawaban benar..." class="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-700 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"></textarea>
+                                </div>
+
+                                <div>
+                                    <label class="mb-2 block text-sm font-bold text-blue-700">Pembahasan untuk Siswa (Opsional)</label>
+                                    <textarea :name="`questions[${index}][pembahasan]`" x-model="question.pembahasan" rows="3" placeholder="Jelaskan cara atau alasan jawaban yang benar..." class="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-700 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"></textarea>
                                 </div>
                             </div>
                         </div>
@@ -139,9 +144,9 @@
 <script>
     function lkpdBuilder() {
         return {
-            questions: [{ key: Date.now(), pertanyaan: '', rubrik_jawaban: '' }],
+            questions: [{ key: Date.now(), pertanyaan: '', rubrik_jawaban: '', pembahasan: '' }],
             addQuestion() {
-                this.questions.push({ key: Date.now() + Math.random(), pertanyaan: '', rubrik_jawaban: '' });
+                this.questions.push({ key: Date.now() + Math.random(), pertanyaan: '', rubrik_jawaban: '', pembahasan: '' });
             },
             removeQuestion(index) {
                 if (this.questions.length > 1) {

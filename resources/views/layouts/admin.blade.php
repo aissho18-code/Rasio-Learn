@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>{{ $title ?? 'Dashboard Admin - Ratio Learn' }}</title>
+    <title>@yield('title', $title ?? 'Dashboard Admin - Ratio Learn')</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -20,15 +20,15 @@
     </style>
 </head>
 
-<body class="min-h-screen bg-[#F0F5FE] text-slate-800">
-    <div class="flex min-h-screen">
+<body class="h-screen overflow-hidden bg-[#F0F5FE] text-slate-800">
+    <div class="flex h-screen w-screen overflow-hidden">
         <!-- Sidebar Admin -->
         @include('layouts.sidebar-admin')
 
         <!-- Konten Utama -->
-        <div class="min-w-0 flex-1">
+        <div class="flex min-w-0 flex-1 flex-col overflow-hidden">
             <!-- Header Atas -->
-            <header class="flex items-center justify-end gap-5 px-8 py-5">
+            <header class="flex shrink-0 items-center justify-end gap-5 px-8 py-4">
                 <x-notification-bell />
 
                 <a href="{{ route('profile.show') }}" 
@@ -53,7 +53,7 @@
             </header>
 
             <!-- Tempat Mengisi Konten Halaman -->
-            <main class="px-6 pb-10 lg:px-8">
+            <main class="min-h-0 flex-1 overflow-y-auto px-8 pb-8">
                 @yield('content')
             </main>
         </div>

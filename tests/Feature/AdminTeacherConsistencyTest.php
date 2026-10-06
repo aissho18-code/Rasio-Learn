@@ -138,6 +138,59 @@ class AdminTeacherConsistencyTest extends TestCase
             ->assertSee(route('admin.exams.index'));
     }
 
+    public function test_admin_dashboard_and_management_pages_use_one_shared_sidebar(): void
+    {
+        $admin = $this->createUser('admin');
+        $admin->forceFill(['email_verified_at' => now()])->saveQuietly();
+        $teacher = $this->createUser('guru');
+        $student = $this->createUser('siswa');
+
+        $pages = [
+            [route('admin.dashboard'), 'Dashboard Admin'],
+            [route('admin.users.index'), 'Semua Pengguna Terdaftar'],
+            [route('admin.users.create'), 'Buat Pengguna Baru'],
+            [route('admin.kelas.index'), 'Manajemen Kelas'],
+            [route('admin.kelas.create'), 'Buat Kelas Baru'],
+        ];
+
+        foreach ($pages as [$url, $text]) {
+            $response = $this->actingAs($admin)->get($url)->assertOk()->assertSee($text);
+
+            $this->assertSame(1, substr_count($response->getContent(), '<aside'));
+            $this->assertSame(1, substr_count($response->getContent(), '<main'));
+        }
+
+        $this->actingAs($admin)
+            ->get(route('admin.users.index', ['role' => 'guru']))
+            ->assertOk()
+            ->assertSee($teacher->name)
+            ->assertDontSee($student->name);
+
+        $this->actingAs($admin)
+            ->get(route('admin.users.index', ['role' => 'siswa']))
+            ->assertOk()
+            ->assertSee($student->name)
+            ->assertDontSee($teacher->name);
+    }
+
+    public function test_admin_can_store_announcement_target_for_teacher_student_or_both(): void
+    {
+        $admin = $this->createUser('admin');
+
+        $this->actingAs($admin)
+            ->post(route('admin.pengumuman.store'), [
+                'judul' => 'Pengumuman Administrasi',
+                'isi' => 'Tentukan sasaran awal bulan ini.',
+                'target' => 'both',
+            ])
+            ->assertRedirect(route('admin.pengumuman.index'));
+
+        $this->assertDatabaseHas('pengumuman', [
+            'guru_id' => $admin->id,
+            'target' => 'both',
+        ]);
+    }
+
     private function createUser(string $role): User
     {
         return User::create([
