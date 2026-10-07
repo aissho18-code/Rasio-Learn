@@ -40,7 +40,9 @@ class LkpdController extends Controller
             ->where('siswa_id', $request->user()->id)
             ->first();
 
-        return view('siswa-lkpd-show', compact('lkpd', 'submission'));
+       $isReview = $request->boolean('review');
+
+return view('siswa-lkpd-show', compact('lkpd', 'submission', 'isReview'));
     }
 
     public function questionImage(Request $request, Lkpd $lkpd, LkpdQuestion $question)

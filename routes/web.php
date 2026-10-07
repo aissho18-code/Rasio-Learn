@@ -94,6 +94,9 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/ujian/result/{submission}', [SiswaExamController::class, 'result'])->name('ujian.result');
             Route::get('/ujian/{id}', [SiswaExamController::class, 'show'])->whereNumber('id')->name('ujian.show');
             Route::post('/ujian/{id}/answers', [SiswaExamController::class, 'saveAnswers'])->whereNumber('id')->name('ujian.answers');
+            Route::post('/ujian/{id}/photo', [SiswaExamController::class, 'savePhoto'])
+    ->whereNumber('id')
+    ->name('ujian.photo');
             Route::post('/ujian/{id}/submit', [SiswaExamController::class, 'submit'])->whereNumber('id')->name('ujian.submit');
 
             Route::get('/evaluasi', [SiswaController::class, 'evaluasiIndex'])->name('evaluasi');
@@ -101,6 +104,8 @@ Route::middleware(['auth'])->group(function () {
 
             Route::get('/refleksi', [SiswaController::class, 'refleksiIndex'])->name('refleksi.index');
             Route::get('/refleksi/{id}', [SiswaController::class, 'refleksiShow'])->name('refleksi.show');
+            Route::get('/refleksi/{id}/edit', [SiswaController::class, 'editRefleksi'])->whereNumber('id')->name('refleksi.edit');
+            Route::put('/refleksi/{id}', [SiswaController::class, 'updateRefleksi'])->whereNumber('id')->name('refleksi.update');
             Route::post('/refleksi/{id}', [SiswaController::class, 'storeRefleksi'])->name('refleksi.store');
 
             // LKPD Siswa
@@ -281,7 +286,13 @@ Route::middleware(['auth'])->group(function () {
         Route::put('/aktivitas/{id}', [GuruAktivitasController::class, 'update'])->whereNumber('id')->name('aktivitas.update');
         Route::delete('/aktivitas/{aktivitas}', [GuruAktivitasController::class, 'destroy'])->name('aktivitas.destroy');
         Route::get('/aktivitas/{aktivitas}/submissions', [GuruAktivitasController::class, 'submissions'])->name('aktivitas.submissions');
-
+// Manajemen LKPD Admin
+Route::get('/lkpd', [\App\Http\Controllers\Admin\LkpdController::class, 'index'])->name('lkpd.index');
+Route::get('/lkpd/create', [\App\Http\Controllers\Admin\LkpdController::class, 'create'])->name('lkpd.create');
+Route::post('/lkpd', [\App\Http\Controllers\Admin\LkpdController::class, 'store'])->name('lkpd.store');
+Route::get('/lkpd/{lkpd}/edit', [\App\Http\Controllers\Admin\LkpdController::class, 'edit'])->whereNumber('lkpd')->name('lkpd.edit');
+Route::put('/lkpd/{lkpd}', [\App\Http\Controllers\Admin\LkpdController::class, 'update'])->whereNumber('lkpd')->name('lkpd.update');
+Route::delete('/lkpd/{lkpd}', [\App\Http\Controllers\Admin\LkpdController::class, 'destroy'])->whereNumber('lkpd')->name('lkpd.destroy');
         Route::get('/pengumuman', [\App\Http\Controllers\AdminPengumumanController::class, 'index'])->name('pengumuman.index');
         Route::get('/pengumuman/create', [\App\Http\Controllers\AdminPengumumanController::class, 'create'])->name('pengumuman.create');
         Route::post('/pengumuman', [\App\Http\Controllers\AdminPengumumanController::class, 'store'])->name('pengumuman.store');

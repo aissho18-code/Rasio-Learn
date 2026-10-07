@@ -121,7 +121,82 @@
                                 @else
                                     <label for="answer-{{ $question->id }}" class="mt-5 block text-xs font-semibold text-slate-600">{{ $question->type === 'essay' ? 'Jawaban esai' : 'Jawaban singkat' }}</label>
                                     <textarea id="answer-{{ $question->id }}" name="answers[{{ $question->id }}]" rows="{{ $question->type === 'essay' ? 8 : 3 }}" maxlength="5000" class="mt-2 w-full rounded-lg border border-slate-300 p-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100">{{ is_string($savedAnswer) ? $savedAnswer : '' }}</textarea>
-                                @endif
+                                                                @endif
+
+                                <div class="mt-6 rounded-xl border border-dashed border-blue-200 bg-blue-50/50 p-4">
+                                    <div class="flex flex-wrap items-center justify-between gap-3">
+                                        <div>
+                                            <p class="text-sm font-bold text-slate-800">📷 Foto Coret-coretan</p>
+                                            <p class="mt-1 text-xs leading-5 text-slate-500">
+                                                Jika mengerjakan di kertas, kamu dapat memfoto coretan untuk soal ini.
+                                            </p>
+                                        </div>
+
+                                        <button
+                                            type="button"
+                                            class="open-camera rounded-lg bg-blue-700 px-4 py-2 text-xs font-bold text-white hover:bg-blue-800"
+                                            data-question-id="{{ $question->id }}"
+                                        >
+                                            📷 Foto Coret-coretan
+                                        </button>
+                                    </div>
+
+                                    <div
+                                        class="camera-box mt-4 hidden"
+                                        data-camera-question="{{ $question->id }}"
+                                    >
+                                        <video
+                                            class="camera-video w-full rounded-xl bg-black"
+                                            autoplay
+                                            playsinline
+                                        ></video>
+
+                                        <canvas class="camera-canvas hidden"></canvas>
+
+                                        <div class="mt-3 flex flex-wrap gap-2">
+                                            <button
+                                                type="button"
+                                                class="take-photo rounded-lg bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700"
+                                            >
+                                                Ambil Foto
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                class="close-camera rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-bold text-slate-700"
+                                            >
+                                                Tutup Kamera
+                                            </button>
+                                        </div>
+
+                                        <div class="photo-preview mt-4 hidden">
+                                            <p class="mb-2 text-xs font-bold text-slate-700">Preview foto</p>
+
+                                            <img
+                                                class="preview-image w-full rounded-xl border border-slate-200"
+                                                alt="Preview foto coret-coretan"
+                                            >
+
+                                            <div class="mt-3 flex flex-wrap gap-2">
+                                                <button
+                                                    type="button"
+                                                    class="retake-photo rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-bold text-slate-700"
+                                                >
+                                                    Ambil Ulang
+                                                </button>
+
+                                                <button
+                                                    type="button"
+                                                    class="save-photo rounded-lg bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700"
+                                                >
+                                                    Simpan Foto
+                                                </button>
+                                            </div>
+
+                                            <p class="photo-status mt-2 text-xs text-slate-500"></p>
+                                        </div>
+                                    </div>
+                                </div>
                             </section>
                         @endforeach
 
@@ -244,6 +319,165 @@
         await saveAnswers();
         HTMLFormElement.prototype.submit.call(examForm);
     });
+     // Kamera foto coret-coretan
+    let cameraStream = null;
+    let capturedPhotoBlob = null;
+
+    document.querySelectorAll('.open-camera').forEach((button) => {
+        button.addEventListener('click', async () => {
+            const questionId = button.dataset.questionId;
+            const box = document.querySelector(
+                `[data-camera-question="${questionId}"]`
+            );
+
+            if (!box) return;
+
+            const video = box.querySelector('.camera-video');
+            const preview = box.querySelector('.photo-preview');
+
+            try {
+                cameraStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: { ideal: 'environment' }
+                    },
+                    audio: false
+                });
+
+                video.srcObject = cameraStream;
+                box.classList.remove('hidden');
+                preview.classList.add('hidden');
+            } catch (error) {
+                alert('Kamera tidak dapat dibuka. Pastikan izin kamera diberikan pada browser.');
+            }
+        });
+    });
+
+    document.querySelectorAll('.take-photo').forEach((button) => {
+        button.addEventListener('click', () => {
+            const box = button.closest('.camera-box');
+            const video = box.querySelector('.camera-video');
+            const canvas = box.querySelector('.camera-canvas');
+            const preview = box.querySelector('.photo-preview');
+            const image = box.querySelector('.preview-image');
+
+            if (!video.videoWidth || !video.videoHeight) {
+                alert('Kamera belum siap. Tunggu sebentar lalu coba lagi.');
+                return;
+            }
+
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+
+            const context = canvas.getContext('2d');
+            context.drawImage(
+                video,
+                0,
+                0,
+                canvas.width,
+                canvas.height
+            );
+
+            canvas.toBlob((blob) => {
+                if (!blob) return;
+
+                capturedPhotoBlob = blob;
+                image.src = URL.createObjectURL(blob);
+                preview.classList.remove('hidden');
+
+                if (cameraStream) {
+                    cameraStream.getTracks().forEach((track) => track.stop());
+                    cameraStream = null;
+                }
+            }, 'image/jpeg', 0.85);
+        });
+    });
+
+    document.querySelectorAll('.close-camera').forEach((button) => {
+        button.addEventListener('click', () => {
+            const box = button.closest('.camera-box');
+
+            if (cameraStream) {
+                cameraStream.getTracks().forEach((track) => track.stop());
+                cameraStream = null;
+            }
+
+            box.classList.add('hidden');
+        });
+    });
+
+    document.querySelectorAll('.retake-photo').forEach((button) => {
+        button.addEventListener('click', async () => {
+            const box = button.closest('.camera-box');
+            const video = box.querySelector('.camera-video');
+            const preview = box.querySelector('.photo-preview');
+
+            try {
+                cameraStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: { ideal: 'environment' }
+                    },
+                    audio: false
+                });
+
+                video.srcObject = cameraStream;
+                preview.classList.add('hidden');
+                capturedPhotoBlob = null;
+            } catch (error) {
+                alert('Kamera tidak dapat dibuka.');
+            }
+        });
+    });  
+        document.querySelectorAll('.save-photo').forEach((button) => {
+        button.addEventListener('click', async () => {
+            const box = button.closest('.camera-box');
+            const questionId = box.dataset.cameraQuestion;
+            const status = box.querySelector('.photo-status');
+
+            if (!capturedPhotoBlob) {
+                status.textContent = 'Belum ada foto yang diambil.';
+                return;
+            }
+
+            status.textContent = 'Menyimpan foto...';
+            button.disabled = true;
+
+            const formData = new FormData();
+            formData.append('_token', document.querySelector('input[name="_token"]').value);
+            formData.append('question_id', questionId);
+            formData.append('photo', capturedPhotoBlob, 'coretan.jpg');
+
+            try {
+                const response = await fetch(
+                    "{{ route('siswa.ujian.photo', $exam->id) }}",
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Accept': 'application/json'
+                        },
+                        body: formData,
+                        credentials: 'same-origin'
+                    }
+                );
+
+                if (response.status === 409) {
+                    window.location.href = examForm.dataset.resultUrl;
+                    return;
+                }
+
+                const data = await response.json();
+
+                if (!response.ok || !data.saved) {
+                    throw new Error(data.message || 'Foto gagal disimpan.');
+                }
+
+                status.textContent = '✓ Foto berhasil disimpan.';
+            } catch (error) {
+                status.textContent = 'Foto gagal disimpan. Coba lagi.';
+            } finally {
+                button.disabled = false;
+            }
+        });
+    }); 
 </script>
 @endunless
 @endsection

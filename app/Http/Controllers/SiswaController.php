@@ -503,7 +503,53 @@ class SiswaController extends Controller
         return view('siswa-refleksi-detail', compact('refleksi', 'submission'));
     }
 
-    // 3. Simpan / Update Jawaban Refleksi Siswa
+    // 3. Form Edit Refleksi Siswa
+    public function editRefleksi($id)
+    {
+        $refleksi = Refleksi::findOrFail($id);
+
+        $submission = RefleksiSubmission::where('siswa_id', auth()->id())
+            ->where('refleksi_id', $id)
+            ->first();
+
+        if (!$submission) {
+            return redirect()->route('siswa.refleksi.show', $id)
+                ->with('error', 'Refleksi belum pernah dikirim.');
+        }
+
+        return view('siswa-refleksi-edit', compact('refleksi', 'submission'));
+    }
+
+    // 4. Update Jawaban Refleksi Siswa
+    public function updateRefleksi(Request $request, $id)
+    {
+        $request->validate([
+            'q1' => 'nullable|string|max:2000',
+            'q2' => 'nullable|string|max:2000',
+            'q3' => 'nullable|string|max:2000',
+            'q4' => 'nullable|string|max:2000',
+            'catatan' => 'nullable|string|max:5000',
+        ]);
+
+        $submission = RefleksiSubmission::where('siswa_id', auth()->id())
+            ->where('refleksi_id', $id)
+            ->firstOrFail();
+
+        $submission->update([
+            'answers' => [
+                'q1' => $request->q1,
+                'q2' => $request->q2,
+                'q3' => $request->q3,
+                'q4' => $request->q4,
+            ],
+            'catatan' => $request->catatan,
+        ]);
+
+        return redirect()->route('siswa.refleksi.show', $id)
+            ->with('success', 'Refleksi berhasil diperbarui!');
+    }
+
+    // 5. Simpan / Update Jawaban Refleksi Siswa
     public function storeRefleksi(Request $request, $id)
     {
         $request->validate([

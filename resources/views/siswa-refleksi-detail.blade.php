@@ -22,37 +22,7 @@
 <body class="bg-[#F0F5FE] text-slate-800 h-screen w-screen overflow-hidden flex select-none">
 
     <!-- SIDEBAR SISWA -->
-    <aside class="w-64 bg-[#0F1A34] text-white flex flex-col justify-between shrink-0 h-full relative z-20 border-r border-slate-800/50">
-        <div class="flex flex-col h-full overflow-y-auto">
-            
-            <!-- LOGO HEADER -->
-            <div class="p-6 flex flex-col items-center border-b border-slate-800/60">
-                <img src="{{ asset('images/design-login.png') }}" alt="Ratio Learn Logo" class="h-12 w-auto object-contain">
-                <span class="text-[10px] text-blue-300 font-medium tracking-wide mt-1.5">Belajar Rasio Jadi Seru!</span>
-            </div>
-
-            <!-- MENU SIDEBAR SISWA -->
-            <nav class="px-4 py-6 space-y-1.5 flex-1">
-                <a href="{{ route('dashboard') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs transition text-slate-300 hover:bg-slate-800/50 hover:text-white font-medium">
-                    <span class="text-base">🏠</span><span>Dashboard</span>
-                </a>
-                
-                <a href="{{ route('siswa.refleksi.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs transition bg-[#E0EDFF] text-[#2563EB] font-bold shadow-xs">
-                    <span class="text-base">💭</span><span>Refleksi</span>
-                </a>
-            </nav>
-
-            <!-- LOGOUT -->
-            <div class="p-4 border-t border-slate-800/60">
-                <form method="POST" action="{{ route('logout') }}">
-                    @csrf
-                    <button type="submit" class="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-slate-400 hover:text-red-400 hover:bg-red-500/10 text-xs font-semibold transition">
-                        <span class="text-base">↪</span><span>Logout</span>
-                    </button>
-                </form>
-            </div>
-        </div>
-    </aside>
+    @include('layouts.sidebar-siswa-compact')
 
     <!-- MAIN CONTENT AREA -->
     <main class="flex-1 flex flex-col h-full overflow-y-auto">
@@ -69,48 +39,133 @@
 
         <div class="px-8 pb-8 space-y-6 flex-1 max-w-4xl">
             <div>
-                <a href="{{ route('siswa.refleksi.index') }}" class="text-xs font-bold text-blue-600 hover:underline mb-1 inline-block">&larr; Kembali ke Daftar Refleksi</a>
-                <h1 class="text-xl font-extrabold text-slate-900">Hasil Refleksi — Pertemuan {{ $refleksi->pertemuan }}</h1>
-                <p class="text-xs text-slate-500 mt-0.5">Dibuat pada: {{ $refleksi->created_at->format('l, d F Y, H:i') }}</p>
+                <a href="{{ route('siswa.refleksi.index') }}" class="text-xs font-bold text-blue-600 hover:underline mb-1 inline-block">
+                    &larr; Kembali ke Daftar Refleksi
+                </a>
+
+                <h1 class="text-xl font-extrabold text-slate-900">
+                    Refleksi — Pertemuan {{ $refleksi->pertemuan }}
+                </h1>
+
+                <p class="text-xs text-slate-500 mt-1">
+                    Ceritakan pemahaman dan pengalaman belajarmu pada pertemuan ini.
+                </p>
             </div>
 
-            @php $a = $refleksi->answers ?? [] @endphp
+            @php
+                $answers = $submission?->answers ?? [];
+                $catatan = $submission?->catatan ?? '';
+            @endphp
 
-            <div class="bg-white rounded-2xl border border-gray-200/80 shadow-sm p-6 space-y-5">
-                <div class="space-y-4 text-xs">
-                    <div class="bg-gray-50 p-4 rounded-xl border border-gray-100 space-y-1">
-                        <div class="font-bold text-gray-800">1. Apa hal baru yang paling kamu pahami?</div>
-                        <div class="text-gray-600 leading-relaxed">{{ $a['q1'] ?? '-' }}</div>
-                    </div>
-                    <div class="bg-gray-50 p-4 rounded-xl border border-gray-100 space-y-1">
-                        <div class="font-bold text-gray-800">2. Bagian mana yang masih membingungkan?</div>
-                        <div class="text-gray-600 leading-relaxed">{{ $a['q2'] ?? '-' }}</div>
-                    </div>
-                    <div class="bg-gray-50 p-4 rounded-xl border border-gray-100 space-y-1">
-                        <div class="font-bold text-gray-800">3. Apa yang kamu lakukan ketika mengalami kesulitan?</div>
-                        <div class="text-gray-600 leading-relaxed">{{ $a['q3'] ?? '-' }}</div>
-                    </div>
-                    <div class="bg-gray-50 p-4 rounded-xl border border-gray-100 space-y-1">
-                        <div class="font-bold text-gray-800">4. Bagian mana yang ingin kamu pelajari kembali?</div>
-                        <div class="text-gray-600 leading-relaxed">{{ $a['q4'] ?? '-' }}</div>
-                    </div>
-                    @if($refleksi->catatan)
-                        <div class="bg-blue-50/50 p-4 rounded-xl border border-blue-100 space-y-1">
-                            <div class="font-bold text-blue-900">Catatan Tambahan</div>
-                            <div class="text-blue-800 leading-relaxed">{{ $refleksi->catatan }}</div>
-                        </div>
-                    @endif
+            <form action="{{ route('siswa.refleksi.store', $refleksi->id) }}" method="POST"
+                  class="bg-white rounded-2xl border border-gray-200/80 shadow-sm p-6 space-y-5">
+                @csrf
+
+                <!-- Pertanyaan 1 -->
+                <div class="space-y-2">
+                    <label for="q1" class="block text-sm font-bold text-slate-800">
+                        1. Apa hal baru yang paling kamu pahami?
+                    </label>
+
+                    <textarea
+                        id="q1"
+                        name="q1"
+                        rows="4"
+                        class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 placeholder-slate-400 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 transition"
+                        placeholder="Tuliskan hal baru yang kamu pahami...">{{ old('q1', $answers['q1'] ?? '') }}</textarea>
+
+                    @error('q1')
+                        <p class="text-xs text-red-500">{{ $message }}</p>
+                    @enderror
                 </div>
 
+                <!-- Pertanyaan 2 -->
+                <div class="space-y-2">
+                    <label for="q2" class="block text-sm font-bold text-slate-800">
+                        2. Bagian mana yang masih membingungkan?
+                    </label>
+
+                    <textarea
+                        id="q2"
+                        name="q2"
+                        rows="4"
+                        class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 placeholder-slate-400 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 transition"
+                        placeholder="Tuliskan bagian yang masih membingungkan...">{{ old('q2', $answers['q2'] ?? '') }}</textarea>
+
+                    @error('q2')
+                        <p class="text-xs text-red-500">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                <!-- Pertanyaan 3 -->
+                <div class="space-y-2">
+                    <label for="q3" class="block text-sm font-bold text-slate-800">
+                        3. Apa yang kamu lakukan ketika mengalami kesulitan?
+                    </label>
+
+                    <textarea
+                        id="q3"
+                        name="q3"
+                        rows="4"
+                        class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 placeholder-slate-400 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 transition"
+                        placeholder="Ceritakan apa yang kamu lakukan ketika mengalami kesulitan...">{{ old('q3', $answers['q3'] ?? '') }}</textarea>
+
+                    @error('q3')
+                        <p class="text-xs text-red-500">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                <!-- Pertanyaan 4 -->
+                <div class="space-y-2">
+                    <label for="q4" class="block text-sm font-bold text-slate-800">
+                        4. Bagian mana yang ingin kamu pelajari kembali?
+                    </label>
+
+                    <textarea
+                        id="q4"
+                        name="q4"
+                        rows="4"
+                        class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 placeholder-slate-400 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 transition"
+                        placeholder="Tuliskan bagian yang ingin kamu pelajari kembali...">{{ old('q4', $answers['q4'] ?? '') }}</textarea>
+
+                    @error('q4')
+                        <p class="text-xs text-red-500">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                <!-- Catatan -->
+                <div class="space-y-2">
+                    <label for="catatan" class="block text-sm font-bold text-slate-800">
+                        Catatan Tambahan <span class="font-normal text-slate-400">(opsional)</span>
+                    </label>
+
+                    <textarea
+                        id="catatan"
+                        name="catatan"
+                        rows="3"
+                        class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 placeholder-slate-400 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 transition"
+                        placeholder="Tambahkan catatan jika ada...">{{ old('catatan', $catatan) }}</textarea>
+
+                    @error('catatan')
+                        <p class="text-xs text-red-500">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                <!-- Tombol -->
                 <div class="pt-4 border-t border-gray-100 flex items-center gap-3">
-                    <a href="{{ route('siswa.refleksi.edit', $refleksi) }}" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-sm transition">
-                        ✏️ Edit Refleksi
-                    </a>
-                    <a href="{{ route('siswa.refleksi.index') }}" class="text-xs font-semibold text-gray-500 hover:underline">
+                    <button
+                        type="submit"
+                        class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-sm transition">
+                        💾 Simpan Refleksi
+                    </button>
+
+                    <a
+                        href="{{ route('siswa.refleksi.index') }}"
+                        class="text-xs font-semibold text-gray-500 hover:text-blue-600 hover:underline">
                         Kembali
                     </a>
                 </div>
-            </div>
+            </form>
         </div>
     </main>
 

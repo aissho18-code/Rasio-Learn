@@ -158,15 +158,19 @@
                         <x-notification-bell />
 
                         <!-- User Profile Badge -->
-                        <div class="flex items-center gap-3 bg-white px-4 py-1.5 rounded-full shadow-sm border border-slate-100">
+                        <a href="{{ route('profile.show') }}" class="flex items-center gap-3 bg-white px-4 py-1.5 rounded-full shadow-sm border border-slate-100 hover:border-blue-300 transition">
                             <div class="w-8 h-8 rounded-full bg-slate-900 text-white font-bold flex items-center justify-center text-xs">
-                                {{ strtoupper(substr(auth()->user()->name ?? 'G', 0, 1)) }}
+                                @if(auth()->user()->avatar)
+    <img src="{{ asset('storage/' . auth()->user()->avatar) }}" alt="Foto Profil" class="w-full h-full object-cover">
+@else
+    {{ strtoupper(substr(auth()->user()->name ?? 'G', 0, 1)) }}
+@endif
                             </div>
                             <div class="text-left pr-1">
                                 <div class="text-xs font-extrabold text-slate-800">{{ auth()->user()->name ?? 'User' }}</div>
                                 <div class="text-[10px] font-semibold text-slate-400 capitalize">{{ auth()->user()->role ?? 'Guru' }}</div>
                             </div>
-                        </div>
+                        </a>
                     </div>
                 </header>
 

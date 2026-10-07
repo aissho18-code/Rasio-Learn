@@ -10,6 +10,8 @@ use App\Models\User;
 use App\Notifications\LearningNotification;
 use App\Support\LearningNotificationService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use App\Models\ExamSubmissionPhoto;
 
 class SiswaExamController extends Controller
 {
@@ -123,7 +125,72 @@ class SiswaExamController extends Controller
 
         return response()->json(['saved' => true, 'saved_at' => now()->format('H:i:s')]);
     }
+public function savePhoto(Request $request, $id)
+{
+    $student = $request->user();
 
+    $exam = $this->studentExamQuery($student, $id)
+        ->with('questions')
+        ->firstOrFail();
+
+    $submission = $this->activeSubmission($exam, $student);
+
+    abort_if(
+        $exam->locked || $exam->status !== 'published',
+        403,
+        'Ujian tidak tersedia.'
+    );
+
+    if ($this->remainingSeconds($exam, $submission) <= 0) {
+        $this->completeAttempt($exam, $submission, true);
+
+        return response()->json(['expired' => true], 409);
+    }
+
+    $data = $request->validate([
+        'question_id' => ['required', 'integer'],
+        'photo' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+    ]);
+
+    $question = $exam->questions->firstWhere(
+        'id',
+        (int) $data['question_id']
+    );
+
+    abort_unless(
+        $question,
+        422,
+        'Soal yang dikirim tidak termasuk ujian ini.'
+    );
+
+    $existingPhoto = ExamSubmissionPhoto::where('exam_submission_id', $submission->id)
+        ->where('exam_question_id', $question->id)
+        ->first();
+
+    if ($existingPhoto) {
+        Storage::disk('public')->delete($existingPhoto->photo_path);
+    }
+
+    $path = $data['photo']->store(
+        'exam-coretan/' . $submission->id,
+        'public'
+    );
+
+    ExamSubmissionPhoto::updateOrCreate(
+        [
+            'exam_submission_id' => $submission->id,
+            'exam_question_id' => $question->id,
+        ],
+        [
+            'photo_path' => $path,
+        ]
+    );
+
+    return response()->json([
+        'saved' => true,
+        'photo_url' => Storage::disk('public')->url($path),
+    ]);
+}
     public function submit(Request $request, $id, LearningNotificationService $notifications)
     {
         $student = $request->user();

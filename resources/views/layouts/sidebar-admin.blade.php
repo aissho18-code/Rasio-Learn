@@ -42,10 +42,9 @@
                 </summary>
                 <div class="ml-5 mt-1 space-y-1 border-l border-slate-700 pl-3">
                     <a href="{{ route('admin.materi.index') }}" class="block rounded-lg px-3 py-2 text-xs {{ request()->routeIs('admin.materi.*') ? 'bg-white text-slate-900 font-bold' : 'text-slate-400 hover:bg-slate-800/60 hover:text-white' }}">Materi</a>
-                    <a href="{{ route('admin.aktivitas.index') }}" class="block rounded-lg px-3 py-2 text-xs {{ request()->routeIs('admin.aktivitas.*') ? 'bg-white text-slate-900 font-bold' : 'text-slate-400 hover:bg-slate-800/60 hover:text-white' }}">Aktivitas</a>
+                  <a href="{{ route('admin.lkpd.index') }}" class="block rounded-lg px-3 py-2 text-xs {{ request()->routeIs('admin.lkpd.*') ? 'bg-white text-slate-900 font-bold' : 'text-slate-400 hover:bg-slate-800/60 hover:text-white' }}">LKPD</a>
                     <a href="{{ route('admin.tugas.index') }}" class="block rounded-lg px-3 py-2 text-xs {{ request()->routeIs('admin.tugas.*') ? 'bg-white text-slate-900 font-bold' : 'text-slate-400 hover:bg-slate-800/60 hover:text-white' }}">Tugas</a>
-                    <a href="{{ route('admin.quiz.index', ['model' => 'quiz_interactive']) }}" class="block rounded-lg px-3 py-2 text-xs {{ request()->routeIs('admin.quiz.*') ? 'bg-white text-slate-900 font-bold' : 'text-slate-400 hover:bg-slate-800/60 hover:text-white' }}">Quiz</a>
-                    <a href="{{ route('admin.exams.index') }}" class="block rounded-lg px-3 py-2 text-xs {{ request()->routeIs('admin.exams.*') ? 'bg-white text-slate-900 font-bold' : 'text-slate-400 hover:bg-slate-800/60 hover:text-white' }}">Ujian</a>
+                    <a href="{{ route('admin.quiz.index', ['model' => 'quiz_interactive']) }}" class="block rounded-lg px-3 py-2 text-xs {{ request()->routeIs('admin.quiz.*') || request()->routeIs('admin.exams.*') ? 'bg-white text-slate-900 font-bold' : 'text-slate-400 hover:bg-slate-800/60 hover:text-white' }}">Quiz/Ujian</a>
                 </div>
             </details>
 
@@ -61,9 +60,7 @@
             <a href="{{ route('admin.pengumuman.index') }}" class="flex items-center gap-3 rounded-xl px-4 py-3 text-xs font-semibold transition-all duration-200 {{ request()->routeIs('admin.pengumuman.*') ? 'bg-white text-slate-900 shadow-sm font-bold' : 'text-slate-400 hover:bg-slate-800/60 hover:text-white' }}">
                 <span class="text-base">📢</span><span>Pengumuman</span>
             </a>
-            <a href="{{ route('profile.edit') }}" class="flex items-center gap-3 rounded-xl px-4 py-3 text-xs font-semibold transition-all duration-200 {{ request()->routeIs('profile.*') ? 'bg-white text-slate-900 shadow-sm font-bold' : 'text-slate-400 hover:bg-slate-800/60 hover:text-white' }}">
-                <span class="text-base">⚙️</span><span>Pengaturan Akun</span>
-            </a>
+            
         </nav>
     </div>
 

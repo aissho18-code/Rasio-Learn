@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Aktivitas;
 use App\Models\AktivitasSubmission;
 use App\Models\Exam;
+use App\Models\ExamSubmission;
 use App\Models\User;
 use App\Models\Materi;
 use App\Models\MateriProgress;
@@ -663,7 +664,15 @@ class GuruController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
-        return view('guru-penilaian', compact('submissions', 'ujianSubmissions'));
+        $examSubmissions = ExamSubmission::with(['student', 'exam'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return view('guru-penilaian', compact(
+            'submissions',
+            'ujianSubmissions',
+            'examSubmissions'
+        ));
     }
 
     private function teacherSubmissions()

@@ -39,35 +39,35 @@
                 
                 <!-- KELOLA MATERI (ACTIVE) -->
                 <a href="{{ route('guru.lkpd.index') }}" 
-                    class="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition {{ request()->routeIs('guru.lkpd.*') ? 'bg-blue-100 text-blue-700' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
-                        <span class="text-lg">📋</span>
+                    class="flex items-center gap-3 rounded-xl px-4 py-3 text-xs transition {{ request()->routeIs('guru.lkpd.*') ? 'bg-blue-100 text-blue-700' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
+                        <span class="text-base">📋</span>
                         <span>Kelola LKPD</span>
                 </a>
-                <a href="{{ route('guru.materi.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs transition {{ request()->routeIs('guru.materi*') ? 'bg-[#E0EDFF] text-[#2563EB] font-bold shadow-xs' : 'text-slate-300 hover:bg-slate-800/50 hover:text-white font-medium' }}">
+                <a href="{{ route('guru.materi.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs transition {{ request()->routeIs('guru.materi*') ? 'bg-[#E0EDFF] text-[#2563EB] font-medium shadow-xs' : 'text-slate-300 hover:bg-slate-800/50 hover:text-white font-medium' }}">
                     <span class="text-base">📖</span><span>Kelola Materi</span>
                 </a>
 
-                <a href="{{ route('guru.tugas.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs transition {{ request()->routeIs('guru.tugas*') ? 'bg-[#E0EDFF] text-[#2563EB] font-bold shadow-xs' : 'text-slate-300 hover:bg-slate-800/50 hover:text-white font-medium' }}">
+                <a href="{{ route('guru.tugas.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs transition {{ request()->routeIs('guru.tugas*') ? 'bg-[#E0EDFF] text-[#2563EB] font-medium shadow-xs' : 'text-slate-300 hover:bg-slate-800/50 hover:text-white font-medium' }}">
                     <span class="text-base">📋</span><span>Kelola Tugas</span>
                 </a>
 
-                <a href="{{ route('guru.ujian.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs transition {{ request()->routeIs('guru.ujian*') ? 'bg-[#E0EDFF] text-[#2563EB] font-bold shadow-xs' : 'text-slate-300 hover:bg-slate-800/50 hover:text-white font-medium' }}">
+                <a href="{{ route('guru.ujian.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs transition {{ request()->routeIs('guru.ujian*') ? 'bg-[#E0EDFF] text-[#2563EB] font-medium shadow-xs' : 'text-slate-300 hover:bg-slate-800/50 hover:text-white font-medium' }}">
                     <span class="text-base">📝</span><span>Kelola Ujian/Kuis</span>
                 </a>
 
-                <a href="{{ route('guru.penilaian.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs transition {{ request()->routeIs('guru.penilaian*') ? 'bg-[#E0EDFF] text-[#2563EB] font-bold shadow-xs' : 'text-slate-300 hover:bg-slate-800/50 hover:text-white font-medium' }}">
+                <a href="{{ route('guru.penilaian.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs transition {{ request()->routeIs('guru.penilaian*') ? 'bg-[#E0EDFF] text-[#2563EB] font-medium shadow-xs' : 'text-slate-300 hover:bg-slate-800/50 hover:text-white font-medium' }}">
                     <span class="text-base">📊</span><span>Penilaian & Evaluasi</span>
                 </a>
 
-                <a href="{{ route('guru.presensi.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs transition {{ request()->routeIs('guru.presensi*') ? 'bg-[#E0EDFF] text-[#2563EB] font-bold shadow-xs' : 'text-slate-300 hover:bg-slate-800/50 hover:text-white font-medium' }}">
+                <a href="{{ route('guru.presensi.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs transition {{ request()->routeIs('guru.presensi*') ? 'bg-[#E0EDFF] text-[#2563EB] font-medium shadow-xs' : 'text-slate-300 hover:bg-slate-800/50 hover:text-white font-medium' }}">
                     <span class="text-base">📅</span><span>Rekap Presensi Siswa</span>
                 </a>
 
-                <a href="{{ route('diskusi.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs transition {{ request()->routeIs('diskusi*') ? 'bg-[#E0EDFF] text-[#2563EB] font-bold shadow-xs' : 'text-slate-300 hover:bg-slate-800/50 hover:text-white font-medium' }}">
+                <a href="{{ route('diskusi.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs transition {{ request()->routeIs('diskusi*') ? 'bg-[#E0EDFF] text-[#2563EB] font-medium shadow-xs' : 'text-slate-300 hover:bg-slate-800/50 hover:text-white font-medium' }}">
                     <span class="text-base">💬</span><span>Forum Diskusi</span>
                 </a>
 
-                <a href="{{ route('guru.refleksi.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs transition {{ request()->routeIs('guru.refleksi*') ? 'bg-[#E0EDFF] text-[#2563EB] font-bold shadow-xs' : 'text-slate-300 hover:bg-slate-800/50 hover:text-white font-medium' }}">
+                <a href="{{ route('guru.refleksi.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs transition {{ request()->routeIs('guru.refleksi*') ? 'bg-[#E0EDFF] text-[#2563EB] font-medium shadow-xs' : 'text-slate-300 hover:bg-slate-800/50 hover:text-white font-medium' }}">
                     <span class="text-base">💭</span><span>Kelola Refleksi</span>
                 </a>
             </nav>
@@ -99,7 +99,13 @@
             <x-notification-bell />
 
             <a href="{{ route('profile.show') }}" class="flex items-center gap-3 bg-white px-3.5 py-1.5 rounded-full shadow-xs border border-slate-100 hover:border-blue-300 transition">
-                <div class="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-xs">👤</div>
+                <div class="w-8 h-8 rounded-full overflow-hidden bg-slate-900 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                    @if(auth()->user()->avatar)
+                        <img src="{{ asset('storage/' . auth()->user()->avatar) }}" alt="Foto Profil" class="w-full h-full object-cover">
+                    @else
+                        {{ strtoupper(substr(auth()->user()->name ?? 'G', 0, 1)) }}
+                    @endif
+                </div>
                 <div class="text-left leading-tight pr-1">
                     <div class="text-xs font-bold text-slate-800">{{ Auth::user()->name ?? 'Guru Pengajar' }}</div>
                     <div class="text-[10px] text-slate-400 font-medium capitalize">{{ Auth::user()->role ?? 'Guru' }}</div>
@@ -177,10 +183,43 @@
                                     </td>
                                 </tr>
                             @empty
-                                <tr>
-                                    <td colspan="5" class="py-8 text-center text-gray-400 italic">Belum ada pengajuan pengerjaan ujian.</td>
-                                </tr>
+                                @if(empty($examSubmissions ?? []))
+                                    <tr>
+                                        <td colspan="5" class="py-8 text-center text-gray-400 italic">Belum ada pengajuan pengerjaan ujian.</td>
+                                    </tr>
+                                @endif
                             @endforelse
+
+                            @foreach($examSubmissions ?? [] as $es)
+                                <tr class="hover:bg-gray-50/50 transition">
+                                    <td class="py-4 px-6 font-bold text-gray-800">
+                                        <span class="text-gray-400">👤</span>
+                                        <span>{{ $es->student->name ?? 'Siswa' }}</span>
+                                    </td>
+                                    <td class="py-4 px-6">
+                                        <p class="font-semibold text-blue-600">{{ $es->exam->title ?? $es->exam->name ?? 'Kuis' }}</p>
+                                        <p class="text-[10px] text-gray-400">
+                                            Dikumpul: {{ $es->submitted_at ? $es->submitted_at->format('d M Y, H:i') : '-' }}
+                                        </p>
+                                    </td>
+                                    <td class="py-4 px-6 text-center font-bold text-sm">
+                                        {{ $es->score !== null ? $es->score : '-' }}
+                                    </td>
+                                    <td class="py-4 px-6 text-center">
+                                        @if($es->score !== null)
+                                            <span class="bg-green-100 text-green-700 font-bold px-2.5 py-1 rounded-full text-[10px]">Dinilai</span>
+                                        @else
+                                            <span class="bg-amber-100 text-amber-700 font-bold px-2.5 py-1 rounded-full text-[10px]">Belum Dinilai</span>
+                                        @endif
+                                    </td>
+                                    <td class="py-4 px-6 text-right">
+                                        <a href="{{ route('guru.ujian.index') }}" class="inline-flex items-center space-x-1 bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-xl text-xs shadow-sm transition">
+                                            <span>Periksa & Nilai</span>
+                                            <span>🔍</span>
+                                        </a>
+                                    </td>
+                                </tr>
+                            @endforeach
                         </tbody>
                     </table>
                 </div>

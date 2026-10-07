@@ -79,6 +79,16 @@
                 </tbody>
             </table>
         </div>
+
+        <div class="flex items-center justify-between border-t border-slate-100 px-5 py-4">
+            <p class="text-xs text-slate-400">
+                Semua soal tersimpan otomatis setelah menekan "Simpan Soal".
+            </p>
+            <a href="{{ route('guru.ujian.index') }}"
+               class="rounded-lg bg-blue-700 px-5 py-2.5 text-xs font-bold text-white hover:bg-blue-800">
+                ✓ Selesai
+            </a>
+        </div>
     </section>
 </div>
 @endsection
